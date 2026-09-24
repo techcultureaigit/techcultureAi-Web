@@ -1,0 +1,71 @@
+@media only screen and (min-width:320px) and (max-width:992px){
+  body,html{overflow-x: hidden;}
+  nav{ padding: 30px; transition: all 0.4s ease-in-out;}
+  nav a{display: block; width: 100%; text-align: left; }
+
+  .homeScreen{height: auto !important; padding-bottom: 40px !important;}
+
+  .homeScreen {
+    background: url(/asset-1bg1-1.png) no-repeat top left, url(/asset-1bg1-2.png) no-repeat top right !important;
+}
+  
+  .homeScreen_img2{display: none !important;}
+  img.aniamtion-key-2{display: none;}
+ .plusImg{display: none;}
+
+.aboutSection .wrapper{flex-direction: column;}
+.aboutSection .wrapper .img,.aboutSection .wrapper .info{width: 100% !important;}
+
+  .projectCards{white-space: nowrap !important; overflow-x: scroll; display: block !important;}
+  .projectCards .group{display: inline-block !important; width: 300px !important; margin-right: 20px !important;}
+
+    .technologies{white-space: nowrap !important; }
+  .projectCards button{display: inline-block !important; width: auto !important; margin-right: 20px !important;}
+
+      .texhCard{white-space: nowrap !important; overflow-x: scroll; display: block !important;}
+  .texhCard .box{display: inline-block !important; width: 120px !important; height: 120px !important; margin-right: 20px !important; padding-top: 22px !important;}
+.homescreenExpTab {position: static !important; display: none !important;}
+
+
+  .services{white-space: nowrap !important;}
+  .services .box{display: inline-block !important; }
+  .services .box *{white-space: break-spaces !important;}
+
+
+}
+
+
+@media only screen and (min-width:320px) and (max-width:575px){
+  nav{width: 80%;}
+
+   .subscribeForm{width: 100% !important;}
+
+  .animateText{font-size: 70px !important;}
+
+  .mainHd {font-size: 35px !important; line-height: 40px !important;}
+
+  .teamSection .teamItem .content h2{font-size: 20px !important;}
+}
+
+
+@media only screen and (min-width:320px) and (max-width:767px){
+    
+  .homeScreen h1,.homeScreen h2{font-size: 10vw !important; line-height: 11vw !important; flex-direction: column;}
+  .txtLine{display: block !important;}
+
+  
+  .homeScreen p{width: 100% !important;}
+  
+
+  .brands .container{flex-direction: column;}
+  .brands .txtWrapper{text-align: center;}
+    .brands .txtWrapper, .brands .marquee__Wrapper{width: 100% !important;}
+
+
+    .imageBg h2{font-size: 30px !important; line-height: 40px !important;}
+    .imageBg h2 br{display: none !important;}
+    .imageBg  .container{flex-direction: column !important;}
+    .imageBg  .infoBox{flex-direction: column !important; width: 100% !important; margin-top: 20px;}
+    .imageBg  .infoBox .box{width: 100% !important;}
+
+}

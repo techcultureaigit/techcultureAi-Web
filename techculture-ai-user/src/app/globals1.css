@@ -1,0 +1,486 @@
+/* Shared utilities for webdevelopment-ai microsite */
+.container {
+  width: 95% !important;
+  max-width: 1800px !important;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+html,
+body {
+  overflow-x: hidden;
+}
+
+body {
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  scroll-behavior: smooth;
+}
+
+.teal-gradient {
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+}
+
+.step-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(5px);
+  transition: transform 0.3s ease;
+}
+
+.step-card:hover {
+  transform: translateY(-5px);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.bg-teal-main {
+  background-color: #128c7e;
+}
+
+.text-teal-main {
+  color: #128c7e;
+}
+
+.tech-box {
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  position: relative;
+}
+
+.tech-label {
+  position: absolute;
+  top: -12px;
+  left: 20px;
+  background: #128c7e;
+  color: white;
+  padding: 2px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary-light);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
+/* Dashboard mockup animations */
+@keyframes dash-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes dash-float-slow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-6px) rotate(2deg); }
+}
+
+@keyframes dash-orb-pulse {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50% { opacity: 0.75; transform: scale(1.08); }
+}
+
+@keyframes dash-fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dash-line-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes dash-area-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dash-bar-grow {
+  from { transform: scaleY(0); opacity: 0.4; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+
+@keyframes dash-donut-pop {
+  from { transform: scale(0.82) rotate(-90deg); opacity: 0; }
+  to { transform: scale(1) rotate(-90deg); opacity: 1; }
+}
+
+@keyframes dash-shimmer {
+  0% { transform: translateX(-100%) skewX(-12deg); }
+  100% { transform: translateX(200%) skewX(-12deg); }
+}
+
+@keyframes dash-badge-pop {
+  0% { transform: scale(0.8); opacity: 0; }
+  70% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.dash-float { animation: dash-float 4s ease-in-out infinite; }
+.dash-float-delay { animation: dash-float 4.5s ease-in-out 0.6s infinite; }
+.dash-float-slow { animation: dash-float-slow 5s ease-in-out infinite; }
+.dash-orb { animation: dash-orb-pulse 5s ease-in-out infinite; }
+.dash-orb-delay { animation: dash-orb-pulse 6s ease-in-out 1s infinite; }
+
+.dash-card-enter {
+  animation: dash-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.dash-card-enter-1 { animation-delay: 0.1s; }
+.dash-card-enter-2 { animation-delay: 0.2s; }
+.dash-card-enter-3 { animation-delay: 0.35s; }
+.dash-card-enter-4 { animation-delay: 0.5s; }
+
+.dash-line-path {
+  stroke-dasharray: 140;
+  stroke-dashoffset: 140;
+  animation: dash-line-draw 1.8s cubic-bezier(0.22, 1, 0.36, 1) 0.4s forwards;
+}
+
+.dash-area-fill {
+  opacity: 0;
+  animation: dash-area-fade 1s ease 1.2s forwards;
+}
+
+.dash-bar {
+  transform-origin: bottom;
+  animation: dash-bar-grow 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.dash-donut-wrap {
+  animation: dash-donut-pop 1s cubic-bezier(0.22, 1, 0.36, 1) 0.6s both;
+}
+
+.dash-window {
+  animation: dash-float-slow 6s ease-in-out infinite;
+}
+
+.dash-window:hover .dash-card-hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(15, 118, 110, 0.12);
+}
+
+.dash-card-hover {
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
+}
+
+.dash-shimmer-wrap {
+  position: relative;
+  overflow: hidden;
+}
+
+.dash-shimmer-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 60%
+  );
+  animation: dash-shimmer 4s ease-in-out 2s infinite;
+  pointer-events: none;
+}
+
+.dash-badge-pop {
+  animation: dash-badge-pop 0.6s cubic-bezier(0.22, 1, 0.36, 1) 1s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-float,
+  .dash-float-delay,
+  .dash-float-slow,
+  .dash-orb,
+  .dash-orb-delay,
+  .dash-card-enter,
+  .dash-line-path,
+  .dash-area-fill,
+  .dash-bar,
+  .dash-donut-wrap,
+  .dash-window,
+  .dash-shimmer-wrap::after,
+  .dash-badge-pop {
+    animation: none !important;
+  }
+  .dash-line-path { stroke-dashoffset: 0; }
+  .dash-area-fill { opacity: 1; }
+}
+
+/* Features bar — live top border teal ↔ orange */
+@keyframes features-accent-shift {
+  0%, 100% {
+    background: linear-gradient(to right, #14b8a6, #2dd4bf, #14b8a6);
+    opacity: 0.9;
+  }
+  50% {
+    background: linear-gradient(to right, #f97316, #fb923c, #f97316);
+    opacity: 1;
+  }
+}
+
+.features-bar-accent {
+  background: transparent;
+}
+
+.features-bar-accent__base,
+.features-bar-accent__beam {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+/* Teal base line */
+.features-bar-accent__base {
+  background: linear-gradient(90deg, #0f766e, #14b8a6, #0d9488);
+}
+
+/* Orange pulse — expands from center to both sides */
+.features-bar-accent__beam {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 42%,
+    #fe602f 50%,
+    transparent 58%,
+    transparent 100%
+  );
+  transform-origin: center;
+  animation: features-accent-expand 2.4s ease-in-out infinite;
+}
+
+@keyframes features-accent-expand {
+  0% {
+    transform: scaleX(0.08);
+    opacity: 0.35;
+  }
+  45% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  70% {
+    transform: scaleX(1);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scaleX(0.08);
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .features-bar-accent__beam {
+    animation: none !important;
+    opacity: 0.7;
+    transform: scaleX(0.45);
+  }
+}
+
+/* Hero CTA — animated charcoal + orange gradient (logo colors) */
+.hero-cta-gradient {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: linear-gradient(
+    110deg,
+    #2e3545 0%,
+    #fe602f 50%,
+    #2e3545 100%
+  );
+  background-size: 220% 220%;
+  animation: hero-cta-gradient-shift 5s ease-in-out infinite;
+  color: #fff !important;
+}
+
+.hero-cta-gradient::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    110deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.22) 48%,
+    transparent 72%
+  );
+  background-size: 200% 100%;
+  animation: hero-cta-sheen 3.2s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes hero-cta-gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes hero-cta-sheen {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -120% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-cta-gradient,
+  .hero-cta-gradient::before {
+    animation: none !important;
+  }
+
+  .hero-cta-gradient {
+    background: linear-gradient(110deg, #2e3545, #fe602f);
+    background-size: 100% 100%;
+  }
+}
+
+/* Book a Demo — outlined animated gradient (different from solid primary) */
+.hero-cta-demo {
+  position: relative;
+  isolation: isolate;
+  color: #fe602f;
+  background: #fff;
+  box-shadow:
+    0 4px 14px rgba(46, 53, 69, 0.06),
+    0 10px 28px rgba(13, 148, 136, 0.08);
+  transition:
+    color 0.3s ease,
+    box-shadow 0.3s ease,
+    transform 0.3s ease;
+}
+
+.hero-cta-demo::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(
+    120deg,
+    #005871,
+    #fe602f,
+    #ff7a4d,
+    #005871
+  );
+  background-size: 300% 300%;
+  animation: hero-cta-demo-border 4s ease-in-out infinite;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.hero-cta-demo::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: inherit;
+  background: linear-gradient(
+    105deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 247, 237, 0.9) 45%,
+    rgba(240, 253, 250, 0.95) 100%
+  );
+  background-size: 200% 200%;
+  animation: hero-cta-demo-fill 5.5s ease-in-out infinite;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.hero-cta-demo__icon {
+  background: linear-gradient(135deg, #fff7ed, #ffedd5);
+  color: #fe602f;
+  box-shadow: inset 0 0 0 1px rgba(254, 96, 47, 0.2);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hero-cta-demo:hover {
+  color: #e14e22;
+  box-shadow:
+    0 6px 18px rgba(254, 96, 47, 0.14),
+    0 14px 32px rgba(13, 148, 136, 0.12);
+  transform: translateY(-1px);
+}
+
+.hero-cta-demo:hover .hero-cta-demo__icon {
+  transform: scale(1.06);
+  box-shadow:
+    inset 0 0 0 1px rgba(254, 96, 47, 0.28),
+    0 4px 10px rgba(254, 96, 47, 0.2);
+}
+
+@keyframes hero-cta-demo-border {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes hero-cta-demo-fill {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-cta-demo::before,
+  .hero-cta-demo::after {
+    animation: none !important;
+  }
+
+  .hero-cta-demo::before {
+    background: linear-gradient(120deg, #005871, #fe602f);
+    background-size: 100% 100%;
+  }
+}
+
+/* Hero ecosystem visual — layered elevation */
+.hero-ecosystem-img {
+  filter:
+    drop-shadow(0 4px 8px rgba(46, 53, 69, 0.08))
+    drop-shadow(0 14px 28px rgba(46, 53, 69, 0.12))
+    drop-shadow(0 28px 56px rgba(7, 59, 58, 0.14));
+  transition: filter 0.35s ease, transform 0.35s ease;
+}
+
+.hero-ecosystem-img:hover {
+  filter:
+    drop-shadow(0 6px 12px rgba(46, 53, 69, 0.1))
+    drop-shadow(0 18px 36px rgba(46, 53, 69, 0.14))
+    drop-shadow(0 36px 64px rgba(254, 96, 47, 0.12));
+  transform: translateY(-4px) translateZ(0);
+}

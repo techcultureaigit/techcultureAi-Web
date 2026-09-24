@@ -1,0 +1,14 @@
+/* Shared utilities for webdevelopment-ai microsite */
+.container {
+  width: 95% !important;
+  max-width: 1800px !important;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+html,
+body {
+  overflow-x: hidden;
+}
