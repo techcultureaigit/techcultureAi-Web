@@ -118,7 +118,7 @@ export default function CareersPage() {
         <div className="absolute -bottom-40 left-[8%] -z-20 h-96 w-96 rounded-full bg-[#2E3545]/8 blur-[110px]" />
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(rgba(46,53,69,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(46,53,69,0.035)_1px,transparent_1px)] bg-size-[48px_48px] mask-[linear-gradient(to_bottom,black,transparent_82%)]" />
 
-        <div className="container mx-auto grid min-h-162.5 items-center gap-14 px-5 py-16 sm:px-6 md:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
+        <div className="container mx-auto grid min-h-0 items-center gap-8 px-4 py-12 sm:min-h-162.5 sm:gap-14 sm:px-6 sm:py-16 md:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
           <motion.div initial="hidden" animate="visible">
             <motion.div
               variants={animation}
@@ -130,7 +130,7 @@ export default function CareersPage() {
 
             <motion.h1
               variants={animation}
-              className="max-w-3xl text-4xl font-semibold leading-[1.06] tracking-[-0.045em] sm:text-5xl lg:text-[4rem]"
+              className="max-w-3xl text-[2rem] font-semibold leading-[1.1] tracking-[-0.045em] sm:text-4xl md:text-5xl lg:text-[4rem]"
             >
               Do the best work of your career.{" "}
               <span className="text-[#FE602F]">Build what matters.</span>

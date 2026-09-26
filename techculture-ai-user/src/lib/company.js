@@ -5,27 +5,26 @@ export const COMPANY = {
   shortName: "TechCulture AI",
   cin: "U62010DL2026PTC460892",
   email: "info@techculture.ai",
-  phone: "+91 74282 38091",
-  phoneTel: "+917428238091",
+  phone: "+91 9810785215",
+  phoneTel: "+919810785215",
   registeredAddress: {
     label: "Registered Address",
     lines: [
       "50, 51 Second Floor, Regal Building,",
       "Connaught Place, New Delhi,",
-      "Central Delhi, Delhi, India, 110001",
+      "India, 110001",
     ],
     singleLine:
-      "50, 51 Second Floor, Regal Building, Connaught Place, New Delhi, Central Delhi, Delhi, India, 110001",
+      "50, 51 Second Floor, Regal Building, Connaught Place, New Delhi, India, 110001",
   },
   corporateAddress: {
     label: "Corporate Address",
     lines: [
-      "B35/2, Lobe-03, 5th Floor of Tower B,",
-      "The Corenthum Building, Sector-62,",
-      "Noida, Uttar Pradesh, 201301",
-    ],
+      "1212 12th Floor Kailash Building,",
+      "26 KG Marg, Connaught Place, New Delhi – 110001.,",
+         ],
     singleLine:
-      "B35/2, Lobe-03, 5th Floor of Tower B, The Corenthum Building, Sector-62, Noida, Uttar Pradesh, 201301",
+      "1212 12th Floor, Kailash Building, 26 KG Marg, Connaught Place, New Delhi – 110001.",
   },
 };
 

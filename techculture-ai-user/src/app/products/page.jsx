@@ -139,7 +139,7 @@ export default function ProductsHubPage() {
 
             <motion.h1
               variants={animation}
-              className="max-w-3xl text-4xl font-semibold leading-[1.06] tracking-[-0.045em] sm:text-5xl lg:text-[4rem]"
+              className="max-w-3xl text-[2rem] font-semibold leading-[1.1] tracking-[-0.045em] sm:text-4xl md:text-5xl lg:text-[4rem]"
             >
               One ecosystem. Every{" "}
               <span className="text-[#FE602F]">client journey.</span>

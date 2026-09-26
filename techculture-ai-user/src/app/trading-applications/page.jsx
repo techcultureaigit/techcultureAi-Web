@@ -19,6 +19,7 @@ export default function TradingApplicationsPage() {
       title="Trading Applications"
       summary="Powerful trading solutions inspired by Zerodha & Groww."
       about="We build trading platforms for brokers and fintechs — live charts, order placement, portfolio views and watchlists that feel fast on web and mobile, with security and compliance built into every journey."
+      heroImage="/fintech-growth-hero.png"
       heroFeatures={[
         { title: "Live Charts", subtitle: "Real-time market view", icon: CandlestickChart },
         { title: "Orders", subtitle: "Buy, sell & modify", icon: Zap },

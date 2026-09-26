@@ -22,7 +22,6 @@ import { webdevHref } from "@/lib/webdevelopment/paths";
 import ScrollReveal from "@/components/ScrollReveal";
 import {
   AiBrainIcon,
-  AiSparkCluster,
 } from "@/components/forWebDevelopment/AnimatedAiIcons";
 import Partners from "@/components/forWebDevelopment/Partners";
 import Testimonials from "@/components/forWebDevelopment/Testimonials";
@@ -119,27 +118,36 @@ const HERO_HIGHLIGHT_START = HERO_HEADLINE.indexOf(HERO_HIGHLIGHT);
 const HERO_HIGHLIGHT_END = HERO_HIGHLIGHT_START + HERO_HIGHLIGHT.length;
 
 function TypedHeroHeadline({ className }) {
-  const reduceMotion = useReducedMotion();
-  const [charCount, setCharCount] = useState(
-    reduceMotion ? HERO_HEADLINE.length : 0,
-  );
+  const [charCount, setCharCount] = useState(0);
 
   useEffect(() => {
-    if (reduceMotion) {
-      setCharCount(HERO_HEADLINE.length);
-      return;
-    }
-
-    setCharCount(0);
     let i = 0;
-    const id = setInterval(() => {
-      i += 1;
-      setCharCount(i);
-      if (i >= HERO_HEADLINE.length) clearInterval(id);
-    }, 38);
+    let typeId;
+    let pauseId;
+    let cancelled = false;
 
-    return () => clearInterval(id);
-  }, [reduceMotion]);
+    const startTyping = () => {
+      if (cancelled) return;
+      i = 0;
+      setCharCount(0);
+      typeId = setInterval(() => {
+        i += 1;
+        setCharCount(i);
+        if (i >= HERO_HEADLINE.length) {
+          clearInterval(typeId);
+          pauseId = setTimeout(startTyping, 2000);
+        }
+      }, 38);
+    };
+
+    startTyping();
+
+    return () => {
+      cancelled = true;
+      clearInterval(typeId);
+      clearTimeout(pauseId);
+    };
+  }, []);
 
   const before = HERO_HEADLINE.slice(
     0,
@@ -221,9 +229,10 @@ export default function HomePage() {
   return (
     <div className="relative overflow-hidden">
       {/* Hero */}
-      <section className="relative flex min-h-[calc(100vh-5rem)] flex-col justify-center px-5 pb-20 pt-10 sm:px-8 lg:px-10 xl:px-20">
+      <section className="relative flex min-h-[calc(100vh-5rem)] flex-col justify-center py-10 pb-20">
         <HeroVideoBackground />
 
+        <div className="container relative z-10">
         <div className="relative z-10 mr-auto w-full max-w-2xl lg:max-w-3xl [text-shadow:0_2px_24px_rgba(0,0,0,0.35)]">
             <motion.div
             initial={reduceMotion ? false : { opacity: 0, y: -12 }}
@@ -238,7 +247,6 @@ export default function HomePage() {
           </motion.div>
 
           <div className="relative">
-            <AiSparkCluster className="-right-4 -top-6 hidden sm:block" />
             <motion.p
               initial={reduceMotion ? false : { opacity: 0, x: -28 }}
               animate={{ opacity: 1, x: 0 }}
@@ -249,27 +257,27 @@ export default function HomePage() {
             </motion.p>
           </div>
 
-          <TypedHeroHeadline className="mt-5 max-w-3xl text-3xl font-semibold leading-[1.15] tracking-tight text-white! sm:text-4xl lg:text-5xl" />
+          <TypedHeroHeadline className="mt-4 max-w-3xl text-[1.65rem] font-semibold leading-[1.2] tracking-tight text-white! sm:mt-5 sm:text-4xl lg:text-5xl" />
 
           <motion.p
             initial={reduceMotion ? false : { opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.16, ease }}
-            className="mt-5 max-w-xl text-base leading-relaxed text-white/90 sm:text-lg"
+            className="mt-4 max-w-xl text-sm leading-relaxed text-white/90 sm:mt-5 sm:text-base sm:text-lg"
           >
-            We design and develop websites, mobile apps and custom software for
-            government and private organizations — from idea to production.
+          We solve business challenges with technology — building websites, mobile apps, and custom software from idea to production.
+
           </motion.p>
 
           <motion.div
             initial={reduceMotion ? false : { opacity: 0, y: 18, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.5, delay: 0.26, ease }}
-            className="mt-9 flex flex-wrap items-center gap-3"
+            className="mt-7 flex w-full flex-col gap-3 sm:mt-9 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center"
           >
             <Link
               href={webdevHref("/banking-fintech")}
-              className="inline-flex items-center gap-2 rounded-full bg-[#FE602F] px-6 py-3 text-sm font-semibold text-white! transition hover:bg-[#e55528] hover:scale-[1.03] active:scale-[0.98]"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#FE602F] px-6 py-3 text-sm font-semibold text-white! transition hover:bg-[#e55528] hover:scale-[1.03] active:scale-[0.98] sm:w-auto"
             >
               Explore Banking & Fintech
               <ArrowRight size={16} />
@@ -277,11 +285,12 @@ export default function HomePage() {
             <button
               type="button"
               onClick={openBookDemo}
-              className="inline-flex items-center gap-2 rounded-full border border-white/50 bg-white/10 px-6 py-3 text-sm font-semibold text-white! backdrop-blur-sm transition hover:bg-white/20 hover:scale-[1.03] active:scale-[0.98]"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/50 bg-white/10 px-6 py-3 text-sm font-semibold text-white! backdrop-blur-sm transition hover:bg-white/20 hover:scale-[1.03] active:scale-[0.98] sm:w-auto"
             >
               Book a demo
             </button>
           </motion.div>
+        </div>
         </div>
       </section>
 
@@ -292,28 +301,31 @@ export default function HomePage() {
       </ScrollReveal>
 
       {/* Who we are */}
-      <section className="relative z-10 w-full overflow-hidden bg-white px-4 py-0 sm:px-6 md:px-8 lg:px-10 xl:px-14 2xl:px-20">
-        <div className="pointer-events-none absolute -left-10 top-16 h-40 w-40 rounded-full border border-[#FE602F]/20" />
-        <div className="pointer-events-none absolute left-24 top-28 h-2 w-2 rounded-full bg-[#FE602F]/50" />
-        <div className="pointer-events-none absolute right-[38%] bottom-16 h-28 w-28 rounded-full border border-[#FE602F]/15" />
+      <section
+        data-no-auto-reveal
+        className="relative z-10 w-full overflow-visible bg-white px-4 py-8 sm:px-6 sm:py-10"
+      >
+        <div className="pointer-events-none absolute -left-10 top-16 hidden h-40 w-40 rounded-full border border-[#FE602F]/20 sm:block" />
+        <div className="pointer-events-none absolute left-24 top-28 hidden h-2 w-2 rounded-full bg-[#FE602F]/50 sm:block" />
+        <div className="pointer-events-none absolute right-[38%] bottom-16 hidden h-28 w-28 rounded-full border border-[#FE602F]/15 sm:block" />
 
-        <div className="relative z-10 grid w-full items-center gap-6 md:gap-8 lg:grid-cols-2 lg:gap-10 xl:gap-12">
-          <ScrollReveal direction="left" delay={0.04} duration={0.75} className="w-full min-w-0">
-            <p className="flex items-center gap-2 text-[10px] font-bold tracking-[0.18em] text-[#FE602F] uppercase sm:text-xs">
+        <div className="relative z-10 mx-auto grid w-full max-w-[1800px] items-center gap-8 md:gap-8 lg:grid-cols-2 lg:gap-10 xl:gap-12">
+          <div className="w-full min-w-0 text-center lg:text-left">
+            <p className="inline-flex items-center justify-center gap-2 text-[10px] font-bold tracking-[0.18em] text-[#FE602F] uppercase sm:text-xs lg:justify-start">
               <span className="h-px w-4 bg-[#FE602F] sm:w-5" />
               Who we are
             </p>
-            <h2 className="mt-2 text-[28px] font-bold tracking-tight text-[#2E3545]! sm:text-4xl md:text-[40px] lg:text-[42px] xl:text-5xl lg:leading-tight">
+            <h2 className="mt-2 text-[24px] font-bold tracking-tight text-[#2E3545]! sm:text-4xl md:text-[40px] lg:text-[42px] xl:text-5xl lg:leading-tight">
               We are a full-stack{" "}
               <span className="text-[#FE602F]!">software company</span>
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#667085] sm:text-[15px] md:text-base">
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-[#667085] sm:text-[15px] md:text-base lg:mx-0">
               TechCulture AI builds intelligent, scalable digital solutions for
               every kind of organization — from citizen portals and banking
               products to enterprise tools and consumer apps.
             </p>
 
-            <div className="mt-5 grid w-full grid-cols-2 gap-3 sm:mt-6 sm:gap-4 lg:grid-cols-4">
+            <div className="mx-auto mt-5 grid w-full max-w-lg grid-cols-2 gap-3 sm:mt-6 sm:max-w-none sm:gap-4 lg:mx-0 lg:grid-cols-4">
               {highlightStats.map((item) => {
                 const Icon = item.Icon;
                 return (
@@ -334,55 +346,54 @@ export default function HomePage() {
                 );
               })}
             </div>
-          </ScrollReveal>
+          </div>
 
-          <ScrollReveal direction="right" delay={0.1} duration={0.75} className="w-full min-w-0">
-            <div className="relative w-full">
-              <div className="pointer-events-none absolute -top-6 -left-4 hidden h-24 w-24 rounded-full border border-[#FE602F]/25 sm:block" />
-              <div className="pointer-events-none absolute -right-3 top-10 hidden h-16 w-16 rounded-full border border-[#FE602F]/20 sm:block" />
-              <div className="pointer-events-none absolute -bottom-4 left-10 hidden h-20 w-20 rounded-full border border-[#FE602F]/15 sm:block" />
-
+          <div className="w-full min-w-0">
+            <div className="relative mx-auto w-full max-w-xl lg:max-w-none">
               <div className="relative w-full overflow-hidden rounded-2xl bg-transparent sm:rounded-[28px]">
                 <Image
                   src="/whoweare.png"
                   alt="TechCulture team collaborating"
                   width={1376}
                   height={768}
-                  className="h-auto w-full object-contain object-center"
-                  sizes="100vw"
+                  className="mx-auto h-auto w-full object-contain object-center"
+                  sizes="(max-width: 1024px) 100vw, 50vw"
                   priority
                 />
               </div>
 
-              <div className="absolute top-2 left-3 flex h-10 w-10 items-center justify-center rounded-xl border border-white/60 bg-white/80 text-[#FE602F] shadow-lg backdrop-blur-md sm:left-6 sm:h-12 sm:w-12 sm:rounded-2xl">
-                <Brain size={18} strokeWidth={2} className="sm:h-5 sm:w-5" />
+              <div className="absolute top-2 left-2 z-10 flex h-9 w-9 items-center justify-center rounded-xl border border-white/60 bg-white/80 text-[#FE602F] shadow-lg backdrop-blur-md sm:left-6 sm:h-12 sm:w-12 sm:rounded-2xl">
+                <Brain size={16} strokeWidth={2} className="sm:h-5 sm:w-5" />
               </div>
-              <div className="absolute top-6 -right-1 flex h-10 w-10 items-center justify-center rounded-xl border border-white/60 bg-white/80 text-[#FE602F] shadow-lg backdrop-blur-md sm:top-8 sm:-right-3 sm:h-12 sm:w-12 sm:rounded-2xl">
-                <BarChart3 size={18} strokeWidth={2} className="sm:h-5 sm:w-5" />
+              <div className="absolute top-6 right-2 z-10 flex h-9 w-9 items-center justify-center rounded-xl border border-white/60 bg-white/80 text-[#FE602F] shadow-lg backdrop-blur-md sm:top-8 sm:right-3 sm:h-12 sm:w-12 sm:rounded-2xl">
+                <BarChart3 size={16} strokeWidth={2} className="sm:h-5 sm:w-5" />
               </div>
-              <div className="absolute bottom-2 right-4 flex h-10 w-10 items-center justify-center rounded-xl border border-white/60 bg-white/80 text-[#FE602F] shadow-lg backdrop-blur-md sm:right-10 sm:h-12 sm:w-12 sm:rounded-2xl">
-                <Globe2 size={18} strokeWidth={2} className="sm:h-5 sm:w-5" />
+              <div className="absolute bottom-2 right-3 z-10 flex h-9 w-9 items-center justify-center rounded-xl border border-white/60 bg-white/80 text-[#FE602F] shadow-lg backdrop-blur-md sm:right-10 sm:h-12 sm:w-12 sm:rounded-2xl">
+                <Globe2 size={16} strokeWidth={2} className="sm:h-5 sm:w-5" />
               </div>
             </div>
-          </ScrollReveal>
+          </div>
         </div>
       </section>
 
       <TechnologyStackSection />
 
       {/* What we build */}
-      <section className="relative z-10 w-full overflow-hidden bg-white px-4 py-4 sm:px-6 md:px-8 lg:px-10 xl:px-14 2xl:px-20">
+      <section
+        data-no-auto-reveal
+        className="relative z-10 w-full overflow-visible bg-white px-4 py-6 sm:px-6 sm:py-8"
+      >
         <div className="pointer-events-none absolute right-10 top-12 h-32 w-32 rounded-full border border-[#FE602F]/15" />
         <div className="pointer-events-none absolute bottom-10 left-[20%] h-2 w-2 rounded-full bg-[#FE602F]/40" />
         <div className="pointer-events-none absolute top-1/3 left-[8%] h-64 w-64 rounded-full bg-[#FE602F]/5 blur-3xl" />
 
-        <div className="relative z-10 grid w-full items-center gap-6 md:gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10 xl:gap-12">
-          <ScrollReveal direction="left" delay={0.04} duration={0.7} className="w-full min-w-0 py-2">
+        <div className="container relative z-10 grid items-center gap-6 md:gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10 xl:gap-12">
+          <ScrollReveal direction="up" delay={0.04} duration={0.7} className="w-full min-w-0 py-2 text-center lg:text-left">
             <p className="flex items-center gap-2 text-[10px] font-bold tracking-[0.18em] text-[#FE602F] uppercase sm:text-xs">
               <span className="h-px w-4 bg-[#FE602F] sm:w-5" />
               What we build
             </p>
-            <h2 className="mt-2 text-[28px] font-bold tracking-tight text-[#2E3545]! sm:text-4xl md:text-[40px] lg:text-[42px] xl:text-5xl lg:leading-tight">
+            <h2 className="mt-2 text-[24px] font-bold tracking-tight text-[#2E3545]! sm:text-4xl md:text-[40px] lg:text-[42px] xl:text-5xl lg:leading-tight">
               Turning ideas into{" "}
               <span className="text-[#FE602F]!">powerful digital solutions</span>
             </h2>
@@ -512,17 +523,16 @@ export default function HomePage() {
       </ScrollReveal>
 
       {/* CTA */}
-      <section className="relative z-10 overflow-hidden bg-white px-5 py-16 sm:px-8 lg:px-12 lg:py-20">
+      <section className="relative z-10 overflow-hidden bg-white px-4 py-12 sm:px-8 sm:py-16 lg:px-12 lg:py-20">
         <ScrollReveal
           direction="scale"
           delay={0.04}
           duration={0.7}
-          className="relative mx-auto flex w-full max-w-6xl flex-col gap-8 overflow-hidden rounded-3xl border border-[#e8e6e1] bg-linear-to-br from-[#2E3545] to-[#1a1f2a] px-8 py-10 sm:flex-row sm:items-center sm:justify-between sm:px-12 sm:py-12"
+          className="relative mx-auto flex w-full max-w-[1800px] flex-col gap-6 overflow-hidden rounded-2xl border border-[#e8e6e1] bg-linear-to-br from-[#2E3545] to-[#1a1f2a] px-5 py-8 sm:gap-8 sm:rounded-3xl sm:px-12 sm:py-12 sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="pointer-events-none absolute -right-6 -top-6 opacity-80" aria-hidden>
             <AiBrainIcon size={96} />
           </div>
-          <AiSparkCluster className="right-16 bottom-8 hidden sm:block" />
 
           <div className="relative max-w-xl">
             <h2 className="text-2xl font-semibold tracking-tight text-white! sm:text-3xl">
@@ -533,18 +543,18 @@ export default function HomePage() {
               custom platform. We&apos;ll help you shape it and ship it.
             </p>
           </div>
-          <div className="relative flex flex-wrap gap-3">
+          <div className="relative flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap">
             <button
               type="button"
               onClick={openBookDemo}
-              className="inline-flex items-center gap-2 rounded-full bg-[#FE602F] px-6 py-3 text-sm font-semibold text-white! transition hover:bg-[#e55528] hover:scale-[1.03] active:scale-[0.98]"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#FE602F] px-6 py-3 text-sm font-semibold text-white! transition hover:bg-[#e55528] hover:scale-[1.03] active:scale-[0.98] sm:w-auto"
             >
               Book a demo
               <ArrowRight size={16} />
             </button>
             <Link
               href={webdevHref("/contact")}
-              className="inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/5 px-6 py-3 text-sm font-semibold text-white! transition hover:bg-white/15 hover:scale-[1.03] active:scale-[0.98]"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/35 bg-white/5 px-6 py-3 text-sm font-semibold text-white! transition hover:bg-white/15 hover:scale-[1.03] active:scale-[0.98] sm:w-auto"
             >
               Contact us
             </Link>

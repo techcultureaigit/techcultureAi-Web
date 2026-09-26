@@ -563,7 +563,7 @@ select {
 }
 
 .theme-site-header {
-  background: color-mix(in srgb, var(--theme-surface) 95%, transparent) !important;
+  background: #ffffff !important;
   border-bottom: 1px solid var(--theme-border) !important;
   box-shadow: var(--shadow-navbar);
 }
@@ -1158,11 +1158,11 @@ select {
 }
 
 .auto-reveal[data-reveal-dir="left"] {
-  transform: translate3d(-44px, 0, 0);
+  transform: translate3d(0, 40px, 0);
 }
 
 .auto-reveal[data-reveal-dir="right"] {
-  transform: translate3d(44px, 0, 0);
+  transform: translate3d(0, 40px, 0);
 }
 
 .auto-reveal[data-reveal-dir="scale"] {

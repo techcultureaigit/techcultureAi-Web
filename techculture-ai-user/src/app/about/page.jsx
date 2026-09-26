@@ -75,7 +75,7 @@ export default function AboutInfoPage() {
         <div className="absolute bottom-0 left-[12%] -z-10 h-64 w-64 rounded-full bg-[#2E3545]/8 blur-[90px]" />
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(rgba(46,53,69,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(46,53,69,0.035)_1px,transparent_1px)] bg-size-[48px_48px] mask-[linear-gradient(to_bottom,black,transparent_80%)]" />
 
-        <div className="container mx-auto grid min-h-162.5 items-center gap-12 px-5 py-16 sm:px-6 md:py-20 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14 lg:px-8">
+        <div className="container mx-auto grid min-h-0 items-center gap-8 px-4 py-12 sm:min-h-162.5 sm:gap-12 sm:px-6 sm:py-16 md:py-20 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14 lg:px-8">
           <motion.div initial="hidden" animate="visible">
             <motion.div
               variants={animation}
@@ -87,7 +87,7 @@ export default function AboutInfoPage() {
 
             <motion.h1
               variants={animation}
-              className="max-w-3xl text-4xl font-semibold leading-[1.08] tracking-[-0.04em] text-[#2E3545] sm:text-5xl lg:text-[4rem]"
+              className="max-w-3xl text-[2rem] font-semibold leading-[1.12] tracking-[-0.04em] text-[#2E3545] sm:text-4xl md:text-5xl lg:text-[4rem]"
             >
               Infrastructure for India&apos;s{" "}
               <span className="text-[#FE602F]">financial</span>{" "}
@@ -107,12 +107,12 @@ export default function AboutInfoPage() {
 
             <motion.div
               variants={animation}
-              className="mt-8 flex flex-wrap items-center gap-4"
+              className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:gap-4"
             >
               <button
                 type="button"
                 onClick={openBookDemo}
-                className="brand-cta-gradient inline-flex items-center gap-2 rounded-full px-6 py-3.5 font-semibold"
+                className="brand-cta-gradient inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 font-semibold sm:w-auto"
               >
                 Book a Demo
                 <ArrowRight size={17} />

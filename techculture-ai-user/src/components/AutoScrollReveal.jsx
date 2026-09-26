@@ -9,7 +9,7 @@ const SELECTOR = [
   "main.theme-main [data-scroll-section]",
 ].join(", ");
 
-const DIRECTIONS = ["up", "left", "right", "scale", "up", "fade"];
+const DIRECTIONS = ["up", "fade", "scale", "up", "fade", "up"];
 
 function prefersReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -19,6 +19,7 @@ function shouldSkip(el) {
   if (!el || el.nodeType !== 1) return true;
   if (el.hasAttribute("data-no-auto-reveal")) return true;
   if (el.closest("[data-manual-reveal]")) return true;
+  if (el.closest("[data-no-auto-reveal]")) return true;
   if (el.classList.contains("auto-reveal")) return true;
   return false;
 }

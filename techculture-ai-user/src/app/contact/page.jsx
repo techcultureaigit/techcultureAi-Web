@@ -153,7 +153,7 @@ export default function ContactPage() {
         <div className="absolute bottom-0 left-[10%] -z-10 h-72 w-72 rounded-full bg-[#2E3545]/8 blur-[100px]" />
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(rgba(46,53,69,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(46,53,69,0.035)_1px,transparent_1px)] bg-size-[48px_48px] mask-[linear-gradient(to_bottom,black,transparent_85%)]" />
 
-        <div className="container mx-auto grid items-center gap-12 px-5 py-16 sm:px-6 md:py-20 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14 lg:px-8 lg:py-24">
+        <div className="container mx-auto grid items-center gap-8 px-4 py-12 sm:gap-12 sm:px-6 sm:py-16 md:py-20 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14 lg:px-8 lg:py-24">
           <motion.div initial="hidden" animate="visible" className="space-y-6">
             <motion.div
               variants={animation}
@@ -165,7 +165,7 @@ export default function ContactPage() {
 
             <motion.h1
               variants={animation}
-              className="max-w-3xl text-4xl font-semibold leading-[1.08] tracking-[-0.04em] sm:text-5xl lg:text-[3.75rem]"
+              className="max-w-3xl text-[2rem] font-semibold leading-[1.12] tracking-[-0.04em] sm:text-4xl md:text-5xl lg:text-[3.75rem]"
             >
               Let&apos;s build something{" "}
               <span className="text-[#FE602F]">useful</span> together.

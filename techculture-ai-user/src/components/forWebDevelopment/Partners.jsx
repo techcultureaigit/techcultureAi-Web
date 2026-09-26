@@ -101,9 +101,9 @@ export default function Partners() {
         <div className="absolute bottom-0 left-1/5 h-64 w-64 rounded-full bg-[#2E3545]/8 blur-[90px]" />
       </div>
 
-      <div className="container relative mx-auto px-6">
+      <div className="container relative mx-auto">
         <ScrollReveal direction="up" delay={0.03} duration={0.6}>
-          <h2 className="mb-10 text-center text-2xl font-bold tracking-tight text-slate-700 sm:text-3xl">
+          <h2 className="mb-8 text-center text-xl font-bold tracking-tight text-slate-700 sm:mb-10 sm:text-2xl md:text-3xl">
             Trusted by{" "}
             <span className="section-heading-accent">100+</span> brands
             worldwide
@@ -124,7 +124,7 @@ export default function Partners() {
                   target="_blank"
                   rel="noopener noreferrer"
                   title={partner.name}
-                  className="partner-logo-link mx-4 flex h-[100px] w-[190px] items-center justify-center bg-transparent px-3 transition hover:scale-[1.05] sm:mx-5 sm:h-[110px] sm:w-[200px]"
+                  className="partner-logo-link mx-3 flex h-[80px] w-[140px] items-center justify-center bg-transparent px-2 transition hover:scale-[1.05] sm:mx-5 sm:h-[110px] sm:w-[200px] sm:px-3"
                 >
                   <Image
                     src={partner.logo}

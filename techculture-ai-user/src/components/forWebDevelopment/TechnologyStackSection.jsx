@@ -140,7 +140,10 @@ export default function TechnologyStackSection() {
   const ActiveIcon = active.icon;
 
   return (
-    <section className="relative z-10 w-full overflow-hidden bg-white px-4 py-10 sm:px-6 md:px-8 lg:px-10 xl:px-14 2xl:px-20">
+    <section
+      data-no-auto-reveal
+      className="relative z-10 w-full overflow-visible bg-white px-4 py-10 sm:px-6 sm:py-12"
+    >
       <div className="pointer-events-none absolute inset-0 opacity-[0.25]" aria-hidden>
         <div
           className="absolute inset-0"
@@ -158,16 +161,16 @@ export default function TechnologyStackSection() {
         <div className="absolute bottom-0 left-1/3 h-56 w-56 rounded-full bg-[#2E3545]/5 blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-7xl">
+      <div className="container relative z-10">
         <ScrollReveal direction="up" delay={0.03} duration={0.65}>
-          <div className="mx-auto max-w-3xl text-center">
-            <h2 className="text-2xl font-bold tracking-tight text-[#2E3545]! sm:text-3xl lg:text-4xl">
+          <div className="mx-auto max-w-3xl px-1 text-center sm:px-0">
+            <h2 className="text-[1.35rem] font-bold tracking-tight text-[#2E3545]! sm:text-3xl lg:text-4xl">
               Powering Ideas with{" "}
               <span className="bg-linear-to-r from-[#FE602F] to-[#e55528] bg-clip-text text-transparent">
                 Modern Technology
               </span>
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-[#667085] sm:text-base">
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-[#667085] sm:mt-4 sm:text-base">
               We leverage cutting-edge tools, frameworks and platforms to build
               scalable, secure and high-performing digital solutions for your
               business.
@@ -175,9 +178,32 @@ export default function TechnologyStackSection() {
           </div>
         </ScrollReveal>
 
-        <ScrollReveal direction="up" delay={0.08} duration={0.7} className="mt-10">
-          <div className="grid gap-5 lg:grid-cols-[0.9fr_1.15fr_1.1fr] lg:items-stretch lg:gap-6">
-            <div className="rounded-3xl border border-orange-100/80 bg-white p-3 shadow-[0_10px_30px_rgba(46,53,69,0.05)] sm:p-4">
+        <ScrollReveal direction="up" delay={0.08} duration={0.7} className="mt-8 sm:mt-10">
+          {/* Mobile category chips — centered */}
+          <div className="mb-5 flex justify-center gap-2 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden">
+            <div className="flex min-w-0 flex-wrap justify-center gap-2">
+              {STACK_CATEGORIES.map((category) => {
+                const isActive = category.id === active.id;
+                return (
+                  <button
+                    key={`chip-${category.id}`}
+                    type="button"
+                    onClick={() => setActiveId(category.id)}
+                    className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-semibold transition ${
+                      isActive
+                        ? "border-[#FE602F] bg-[#FE602F] text-white!"
+                        : "border-orange-200 bg-white text-[#2E3545]!"
+                    }`}
+                  >
+                    {category.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mx-auto grid max-w-xl gap-5 lg:max-w-none lg:grid-cols-[0.9fr_1.15fr_1.1fr] lg:items-stretch lg:gap-6">
+            <div className="hidden rounded-3xl border border-orange-100/80 bg-white p-3 shadow-[0_10px_30px_rgba(46,53,69,0.05)] sm:p-4 lg:block">
               <div className="flex flex-col gap-2">
                 {STACK_CATEGORIES.map((category) => {
                   const Icon = category.icon;
@@ -235,7 +261,7 @@ export default function TechnologyStackSection() {
             </div>
 
             <div
-              className={`relative min-h-[280px] overflow-hidden rounded-3xl shadow-[0_10px_30px_rgba(46,53,69,0.05)] sm:min-h-[340px] lg:min-h-full ${
+              className={`relative order-first mx-auto w-full min-h-[220px] overflow-hidden rounded-3xl shadow-[0_10px_30px_rgba(46,53,69,0.05)] sm:min-h-[300px] lg:order-none lg:min-h-full ${
                 active.id === "ai"
                   ? "border-0 bg-[#0b0d12]"
                   : "border border-orange-100/80 bg-white"
@@ -282,7 +308,7 @@ export default function TechnologyStackSection() {
               )}
             </div>
 
-            <div className="flex h-full flex-col rounded-3xl border border-orange-100/80 bg-white p-5 shadow-[0_10px_30px_rgba(46,53,69,0.05)] sm:p-6">
+            <div className="mx-auto flex h-full w-full flex-col rounded-3xl border border-orange-100/80 bg-white p-5 text-center shadow-[0_10px_30px_rgba(46,53,69,0.05)] sm:p-6 lg:text-left">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h3 className="text-base font-bold text-[#2E3545]! sm:text-lg">
                   Popular Technologies
@@ -296,7 +322,7 @@ export default function TechnologyStackSection() {
                 </Link>
               </div>
 
-              <div className="flex flex-wrap content-start gap-2">
+              <div className="flex flex-wrap content-start justify-center gap-2 lg:justify-start">
                 {active.techs.map((tech) => (
                   <span
                     key={tech}
@@ -310,7 +336,7 @@ export default function TechnologyStackSection() {
               <button
                 type="button"
                 onClick={openBookDemo}
-                className="mt-auto inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-[#FE602F] to-[#e55528] px-5 py-3.5 text-sm font-semibold text-white! shadow-[0_12px_28px_rgba(254,96,47,0.28)] transition hover:brightness-105"
+                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-[#FE602F] to-[#e55528] px-5 py-3.5 text-sm font-semibold text-white! shadow-[0_12px_28px_rgba(254,96,47,0.28)] transition hover:brightness-105 lg:mt-auto"
               >
                 <Rocket size={16} />
                 {active.cta}

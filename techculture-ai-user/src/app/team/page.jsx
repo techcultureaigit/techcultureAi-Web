@@ -215,7 +215,7 @@ export default function TeamPage() {
         >
           <motion.h1
             variants={animatedItem}
-            className="mx-auto max-w-4xl text-4xl font-bold leading-[1.08] tracking-tight text-slate-900 drop-shadow-[0_5px_18px_rgba(255,255,255,0.85)] sm:text-5xl md:text-6xl"
+            className="mx-auto max-w-4xl text-[1.85rem] font-bold leading-[1.12] tracking-tight text-slate-900 drop-shadow-[0_5px_18px_rgba(255,255,255,0.85)] sm:text-4xl md:text-5xl lg:text-6xl"
           >
             Meet the minds shaping{" "}
             <span className="bg-linear-to-r from-[#2E3545] via-[#FE602F] to-[#2E3545] bg-clip-text text-transparent">

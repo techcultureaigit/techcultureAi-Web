@@ -1,4 +1,4 @@
-/* Shared utilities for webdevelopment-ai microsite */
+/* Shared layout shell — ~full width on 1920/laptop, capped for ultra-wide zoom */
 .container {
   width: 95% !important;
   max-width: 1800px !important;
@@ -11,6 +11,162 @@
 html,
 body {
   overflow-x: hidden;
+  max-width: 100vw;
+}
+
+img,
+video,
+svg,
+canvas {
+  max-width: 100%;
+}
+
+/* —— Mobile nav drawer animation —— */
+.mobile-nav-drawer {
+  transform: translate3d(110%, 0, 0) scale(0.94);
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition:
+    transform 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.32s ease,
+    visibility 0.32s ease,
+    box-shadow 0.48s ease;
+  will-change: transform, opacity;
+}
+
+.mobile-nav-drawer.is-open {
+  transform: translate3d(0, 0, 0) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+  box-shadow: -16px 12px 48px rgba(46, 53, 69, 0.22);
+}
+
+.mobile-nav-drawer.is-open .mobile-nav-item {
+  animation: mobile-nav-item-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 45ms + 80ms);
+}
+
+.mobile-nav-overlay {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  backdrop-filter: blur(0px);
+  transition:
+    opacity 0.35s ease,
+    visibility 0.35s ease,
+    backdrop-filter 0.35s ease;
+}
+
+.mobile-nav-overlay.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  backdrop-filter: blur(3px);
+}
+
+@keyframes mobile-nav-item-in {
+  from {
+    opacity: 0;
+    transform: translate3d(28px, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (min-width: 1024px) {
+  .mobile-nav-drawer {
+    transform: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    box-shadow: none !important;
+    transition: none !important;
+  }
+
+  .mobile-nav-drawer .mobile-nav-item {
+    animation: none !important;
+  }
+
+  .mobile-nav-overlay {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-nav-drawer,
+  .mobile-nav-overlay {
+    transition-duration: 0.01ms !important;
+  }
+
+  .mobile-nav-drawer.is-open .mobile-nav-item {
+    animation: none !important;
+  }
+}
+
+/* —— Mobile-first responsive guardrails —— */
+@media (max-width: 1023px) {
+  .container {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: 1.25rem !important;
+    padding-right: 1.25rem !important;
+  }
+
+  .theme-main {
+    overflow-x: hidden;
+  }
+}
+
+@media (max-width: 639px) {
+  .container {
+    padding-left: 1.25rem !important;
+    padding-right: 1.25rem !important;
+  }
+
+  /* Prevent fixed header logo / demo btn crowding */
+  .site-header .logo {
+    max-width: 118px;
+  }
+
+  /* Footer: center everything on mobile */
+  .site-footer__inner {
+    text-align: center !important;
+  }
+
+  .site-footer__col {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+
+  .site-footer__logo {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .site-footer__tagline {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .site-footer__heading::after {
+    left: 50% !important;
+    transform: translateX(-50%);
+  }
+
+  .site-footer__link::before {
+    display: none !important;
+  }
+
+  .site-footer__col ul {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
 }
 
 body {

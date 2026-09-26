@@ -12,6 +12,7 @@ import {
   Work_Sans,
 } from "next/font/google";
 import AppProviders from "@/providers/AppProviders";
+import { SITE_NAME, SITE_URL, seoFromPageKey } from "@/lib/seo";
 import "./globals.css";
 import "./globals1.css";
 
@@ -97,10 +98,27 @@ const fontVariables = [
   sora.variable,
 ].join(" ");
 
+const homeSeo = seoFromPageKey("home");
+const homeTitle =
+  typeof homeSeo.title === "object" && homeSeo.title?.absolute
+    ? homeSeo.title.absolute
+    : homeSeo.title;
+
 export const metadata = {
-  title: "TechCulture AI | Web Development & Digital Solutions",
-  description:
-    "Scalable web, mobile, and AI-powered solutions — KYC, automation, middleware, and enterprise digital products.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: homeTitle,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: homeSeo.description,
+  keywords: homeSeo.keywords,
+  authors: homeSeo.authors,
+  creator: homeSeo.creator,
+  publisher: homeSeo.publisher,
+  alternates: homeSeo.alternates,
+  openGraph: homeSeo.openGraph,
+  twitter: homeSeo.twitter,
+  robots: homeSeo.robots,
   icons: {
     icon: [
       { url: "/favicons/favicon.ico", sizes: "any" },
@@ -118,9 +136,9 @@ export const metadata = {
   },
   manifest: "/favicons/manifest.webmanifest",
   appleWebApp: {
-    title: "TechCulture AI",
+    title: SITE_NAME,
   },
-  themeColor: "#073b3a",
+  themeColor: "#FE602F",
 };
 
 const fontBootstrapScript = `

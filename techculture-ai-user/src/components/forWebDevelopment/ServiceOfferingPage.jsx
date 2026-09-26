@@ -87,7 +87,7 @@ export default function ServiceOfferingPage({
 
   return (
     <div className="min-w-0 w-full bg-white text-slate-800">
-      <section className="relative overflow-hidden bg-[#FDFCFB] pt-8 pb-12 md:pt-10 md:pb-16">
+      <section className="relative overflow-hidden bg-[#FDFCFB] pt-6 pb-10 sm:pt-8 sm:pb-12 md:pt-10 md:pb-16">
         {/* Matches hero GIF cream + soft peach washes */}
         <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-[#fff7f3] via-[#FDFCFB] to-[#FDFCFB]" />
         <div className="pointer-events-none absolute top-1/4 right-[8%] h-[420px] w-[420px] rounded-full bg-[#FDECE2]/90 blur-3xl" />
@@ -110,7 +110,7 @@ export default function ServiceOfferingPage({
                 initial={reduce ? false : { opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.55, ease }}
-                className="mb-3 text-[34px] leading-tight font-bold text-[#2E3545]! sm:text-[42px] md:text-[46px]"
+                className="mb-3 text-[28px] leading-tight font-bold text-[#2E3545]! sm:text-[34px] md:text-[42px] lg:text-[46px]"
               >
                 {title}
               </motion.h1>
@@ -123,24 +123,24 @@ export default function ServiceOfferingPage({
                 {about}
               </p>
 
-              <div className="mb-8 flex flex-wrap gap-3">
+              <div className="mb-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap">
                 <button
                   type="button"
                   onClick={openBookDemo}
-                  className="inline-flex items-center gap-2 rounded-full bg-[#FE602F] px-5 py-2.5 text-sm font-semibold text-white! transition hover:bg-[#e55528]"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#FE602F] px-5 py-2.5 text-sm font-semibold text-white! transition hover:bg-[#e55528] sm:w-auto"
                 >
                   Book a demo
                   <ArrowRight size={15} />
                 </button>
                 <Link
                   href={webdevHref("/contact")}
-                  className="inline-flex items-center gap-2 rounded-full border border-[#2E3545]/20 px-5 py-2.5 text-sm font-semibold text-[#2E3545]! transition hover:border-[#FE602F] hover:text-[#FE602F]!"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#2E3545]/20 px-5 py-2.5 text-sm font-semibold text-[#2E3545]! transition hover:border-[#FE602F] hover:text-[#FE602F]! sm:w-auto"
                 >
                   Contact us
                 </Link>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 lg:grid-cols-4">
                 {heroFeatures.map((item, i) => {
                   const FeatureIcon = item.icon;
                   return (
@@ -158,10 +158,10 @@ export default function ServiceOfferingPage({
               </div>
             </div>
 
-            <div className="relative mx-auto w-full max-w-md overflow-visible sm:max-w-lg lg:max-w-xl">
+            <div className="relative mx-auto w-full max-w-sm overflow-hidden sm:max-w-md sm:overflow-visible md:max-w-lg lg:max-w-xl">
               {heroImage ? (
                 <div
-                  className="origin-center scale-[1.1] [mask-image:linear-gradient(to_right,transparent_0%,#000_10%,#000_90%,transparent_100%),linear-gradient(to_bottom,transparent_0%,#000_10%,#000_90%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_right,transparent_0%,#000_10%,#000_90%,transparent_100%),linear-gradient(to_bottom,transparent_0%,#000_10%,#000_90%,transparent_100%)] [mask-composite:intersect] [-webkit-mask-composite:source-in] [mask-repeat:no-repeat] [-webkit-mask-repeat:no-repeat] [mask-size:100%_100%] [-webkit-mask-size:100%_100%]"
+                  className="origin-center scale-100 sm:scale-[1.05] lg:scale-[1.1] [mask-image:linear-gradient(to_right,transparent_0%,#000_10%,#000_90%,transparent_100%),linear-gradient(to_bottom,transparent_0%,#000_10%,#000_90%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_right,transparent_0%,#000_10%,#000_90%,transparent_100%),linear-gradient(to_bottom,transparent_0%,#000_10%,#000_90%,transparent_100%)] [mask-composite:intersect] [-webkit-mask-composite:source-in] [mask-repeat:no-repeat] [-webkit-mask-repeat:no-repeat] [mask-size:100%_100%] [-webkit-mask-size:100%_100%]"
                 >
                   <Image
                     src={heroImage}
