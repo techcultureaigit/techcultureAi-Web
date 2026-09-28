@@ -1178,6 +1178,20 @@ select {
   transform: none;
 }
 
+/* Mobile: entrance motion must not leave sections stuck at opacity 0 */
+@media (max-width: 1023px) {
+  .scroll-reveal-safe,
+  .auto-reveal,
+  .auto-reveal[data-reveal-dir="left"],
+  .auto-reveal[data-reveal-dir="right"],
+  .auto-reveal[data-reveal-dir="scale"],
+  .auto-reveal[data-reveal-dir="fade"] {
+    opacity: 1 !important;
+    transform: none !important;
+    visibility: visible !important;
+  }
+}
+
 /* Fintech hero ecosystem video — blend into section bg (#fdfcfb) */
 .fintech-ecosys-video {
   background-color: #fdfcfb;

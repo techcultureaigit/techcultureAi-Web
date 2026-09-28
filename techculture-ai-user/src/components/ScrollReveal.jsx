@@ -60,7 +60,7 @@ export default function ScrollReveal({
   delay = 0,
   duration = 0.7,
   once = true,
-  amount = 0.16,
+  amount = "some",
   stagger = 0,
 }) {
   const reduceMotion = useReducedMotion();
@@ -79,11 +79,11 @@ export default function ScrollReveal({
 
   return (
     <MotionTag
-      className={className}
+      className={`scroll-reveal-safe ${className}`.trim()}
       data-manual-reveal=""
       initial="hidden"
       whileInView="visible"
-      viewport={{ once, amount, margin: "0px 0px -8% 0px" }}
+      viewport={{ once, amount, margin: "0px 0px 80px 0px" }}
       variants={{
         hidden: parentHidden,
         visible: {

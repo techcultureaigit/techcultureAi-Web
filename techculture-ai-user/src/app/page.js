@@ -227,7 +227,7 @@ export default function HomePage() {
   const reduceMotion = useReducedMotion();
 
   return (
-    <div className="relative overflow-hidden">
+    <div className="relative overflow-x-clip">
       {/* Hero */}
       <section className="relative flex min-h-[calc(100vh-5rem)] flex-col justify-center py-10 pb-20">
         <HeroVideoBackground />
@@ -406,7 +406,7 @@ export default function HomePage() {
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, amount: 0.2 }}
+            viewport={{ once: true, amount: "some", margin: "0px 0px 80px 0px" }}
             variants={{
               hidden: {},
               visible: {
@@ -443,7 +443,7 @@ export default function HomePage() {
                         }
                   }
                   style={{ transformPerspective: 900 }}
-                  className="h-full"
+                  className="scroll-reveal-safe h-full"
                 >
                   <motion.div
                     whileHover={
