@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { motion, useReducedMotion } from "motion/react";
 import {
   ArrowLeft,
   Building2,
@@ -16,7 +17,7 @@ import {
   ScanLine,
 } from "lucide-react";
 import { webdevHref } from "../../../lib/webdevelopment/paths";
-import SpotlightCard, { TEAL_SPOTLIGHT } from "@/components/SpotlightCard";
+import SpotlightCard, { BRAND_SPOTLIGHT } from "@/components/SpotlightCard";
 
 const heroFeatures = [
   {
@@ -84,27 +85,30 @@ const performanceStats = [
 const HERO_IMAGE_SRC = "/digital-kyc-hero.png";
 
 export default function DigitalKycPage() {
+  const reduceMotion = useReducedMotion();
+
   return (
     <div className="bg-white text-slate-800 w-full min-w-0">
       <section className="relative overflow-hidden pt-8 pb-12 md:pt-10 md:pb-16">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#f7faf9] via-white to-white pointer-events-none" />
+        <div className="absolute inset-0 bg-linear-to-b from-[#fff8f5] via-white to-white pointer-events-none" />
+        <div className="absolute -top-20 right-[12%] h-72 w-72 rounded-full bg-[#FE602F]/12 blur-[100px] pointer-events-none" />
 
         <div className="container relative">
           <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.2fr] gap-10 lg:gap-8 items-center">
             <div>
               <Link
                 href={webdevHref("/products")}
-                className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-teal-700 hover:text-teal-800 mb-6 transition-colors"
+                className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#FE602F] hover:text-[#d9471b] mb-6 transition-colors"
               >
                 <ArrowLeft size={15} />
                 Back to Products
               </Link>
 
-              <h1 className="text-[36px] sm:text-[44px] md:text-[48px] font-bold text-slate-900 leading-tight mb-3">
+              <h1 className="text-[36px] sm:text-[44px] md:text-[48px] font-bold text-[#2E3545] leading-tight mb-3">
                 Digital KYC
               </h1>
 
-              <p className="text-[16px] sm:text-[17px] font-semibold text-teal-700 mb-4 max-w-xl">
+              <p className="text-[16px] sm:text-[17px] font-semibold text-[#FE602F] mb-4 max-w-xl">
                 End-to-end digital KYC for individuals with OCR and liveness.
               </p>
 
@@ -116,20 +120,36 @@ export default function DigitalKycPage() {
               </p>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-3">
-                {heroFeatures.map((item) => {
+                {heroFeatures.map((item, index) => {
                   const Icon = item.icon;
                   return (
-                    <div key={item.title} className="min-w-0">
-                      <span className="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 ring-1 ring-teal-100 flex items-center justify-center mb-2.5">
+                    <motion.div
+                      key={item.title}
+                      className="min-w-0"
+                      initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true, amount: 0.4 }}
+                      transition={{ duration: 0.45, delay: index * 0.06 }}
+                    >
+                      <motion.span
+                        className="w-10 h-10 rounded-xl bg-[#fff0eb] text-[#FE602F] ring-1 ring-[#FE602F]/20 flex items-center justify-center mb-2.5"
+                        animate={reduceMotion ? undefined : { y: [0, -3, 0] }}
+                        transition={{
+                          duration: 2.6,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                          delay: index * 0.12,
+                        }}
+                      >
                         <Icon size={18} strokeWidth={2} />
-                      </span>
+                      </motion.span>
                       <p className="text-[12.5px] font-bold text-slate-900 leading-snug mb-0.5">
                         {item.title}
                       </p>
                       <p className="text-[11px] text-slate-500 leading-snug">
                         {item.subtitle}
                       </p>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>
@@ -154,26 +174,46 @@ export default function DigitalKycPage() {
 
       <section className="pb-14 md:pb-20">
         <div className="container">
-          <div className="relative rounded-[28px] bg-gradient-to-br from-[#f3faf8] via-[#f7fcfa] to-[#eff9f5] border border-teal-100/70 p-6 sm:p-8 md:p-10 overflow-hidden">
-            <div className="absolute -top-24 -right-16 w-72 h-72 bg-teal-200/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-24 -left-20 w-72 h-72 bg-emerald-200/20 rounded-full blur-3xl pointer-events-none" />
-            <h2 className="relative text-[24px] sm:text-[28px] font-bold text-slate-900 mb-6 md:mb-8">
+          <div className="relative rounded-[28px] bg-linear-to-br from-[#fff8f5] via-[#fffdfb] to-[#f6f5f4] border border-[#FE602F]/15 p-6 sm:p-8 md:p-10 overflow-hidden">
+            <div className="absolute -top-24 -right-16 w-72 h-72 bg-[#FE602F]/15 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -left-20 w-72 h-72 bg-[#2E3545]/8 rounded-full blur-3xl pointer-events-none" />
+            <h2 className="relative text-[24px] sm:text-[28px] font-bold text-[#2E3545] mb-6 md:mb-8">
               What you get
             </h2>
 
             <div className="relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-              {whatYouGet.map((card) => {
+              {whatYouGet.map((card, index) => {
                 const Icon = card.icon;
                 return (
-                  <SpotlightCard
+                  <motion.div
                     key={card.title}
-                    spotlightColor={TEAL_SPOTLIGHT}
-                    className="group h-full bg-white rounded-2xl border border-teal-100/70 px-5 py-7 text-center shadow-[0_4px_18px_rgba(13,148,136,0.06)] hover:border-teal-300 hover:-translate-y-1 hover:shadow-[0_14px_32px_rgba(13,148,136,0.14)] transition-all duration-300"
+                    className="h-full"
+                    initial={reduceMotion ? false : { opacity: 0, y: 28 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, amount: 0.35 }}
+                    transition={{
+                      duration: 0.5,
+                      delay: index * 0.08,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
+                  >
+                  <SpotlightCard
+                    spotlightColor={BRAND_SPOTLIGHT}
+                    className="group h-full bg-white rounded-2xl border border-[#FE602F]/15 px-5 py-7 text-center shadow-[0_4px_18px_rgba(254,96,47,0.06)] hover:border-[#FE602F]/45 hover:-translate-y-1 hover:shadow-[0_14px_32px_rgba(254,96,47,0.14)] transition-all duration-300"
                   >
                     <div className="flex flex-col items-center h-full">
-                      <span className="w-14 h-14 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center mb-5 shrink-0 group-hover:bg-teal-100 group-hover:scale-105 transition-all duration-300">
+                      <motion.span
+                        className="w-14 h-14 rounded-full bg-[#fff0eb] text-[#FE602F] flex items-center justify-center mb-5 shrink-0 ring-1 ring-[#FE602F]/15 group-hover:bg-[#ffe8df] group-hover:scale-105 transition-all duration-300"
+                        animate={reduceMotion ? undefined : { y: [0, -4, 0] }}
+                        transition={{
+                          duration: 2.8,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                          delay: index * 0.18,
+                        }}
+                      >
                         <Icon size={24} strokeWidth={1.9} />
-                      </span>
+                      </motion.span>
                       <h3 className="text-[13.5px] font-bold text-slate-900 mb-2.5 leading-snug">
                         {card.title}
                       </h3>
@@ -182,33 +222,47 @@ export default function DigitalKycPage() {
                       </p>
                     </div>
                   </SpotlightCard>
+                  </motion.div>
                 );
               })}
 
-              <div className="rounded-2xl bg-gradient-to-b from-[#0f766e] to-[#0d5c56] p-5 sm:p-6 text-white shadow-[0_12px_32px_rgba(15,118,110,0.28)] sm:col-span-2 lg:col-span-1 xl:col-span-1">
-                <h3 className="text-[15px] font-bold mb-3">
+              <motion.div
+                className="rounded-2xl bg-linear-to-b from-[#FE602F] to-[#e04e22] p-5 sm:p-6 text-white shadow-[0_12px_32px_rgba(254,96,47,0.32)] sm:col-span-2 lg:col-span-1 xl:col-span-1"
+                initial={reduceMotion ? false : { opacity: 0, y: 28 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.35 }}
+                transition={{ duration: 0.55, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <h3 className="mb-3 text-[15px] font-bold text-white!">
                   Built for Performance
                 </h3>
                 <div className="h-px bg-white/20 mb-5" />
                 <ul className="space-y-4">
-                  {performanceStats.map((stat) => {
+                  {performanceStats.map((stat, index) => {
                     const Icon = stat.icon;
                     return (
-                      <li key={stat.label} className="flex items-start gap-3">
-                        <span className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <motion.li
+                        key={stat.label}
+                        className="flex items-start gap-3"
+                        initial={reduceMotion ? false : { opacity: 0, x: 12 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true, amount: 0.6 }}
+                        transition={{ duration: 0.4, delay: 0.5 + index * 0.08 }}
+                      >
+                        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/20 text-white">
                           <Icon size={15} strokeWidth={2} />
                         </span>
                         <div className="leading-tight min-w-0">
-                          <p className="text-[15px] font-bold">{stat.value}</p>
-                          <p className="text-[11.5px] text-teal-100/90 mt-0.5">
+                          <p className="text-[15px] font-bold text-white!">{stat.value}</p>
+                          <p className="mt-0.5 text-[11.5px] text-white/80!">
                             {stat.label}
                           </p>
                         </div>
-                      </li>
+                      </motion.li>
                     );
                   })}
                 </ul>
-              </div>
+              </motion.div>
             </div>
           </div>
         </div>

@@ -11,6 +11,7 @@ import {
   Source_Sans_3,
   Work_Sans,
 } from "next/font/google";
+import Script from "next/script";
 import AppProviders from "@/providers/AppProviders";
 import { SITE_NAME, SITE_URL, seoFromPageKey } from "@/lib/seo";
 import "./globals.css";
@@ -168,6 +169,8 @@ const fontBootstrapScript = `
 })();
 `;
 
+const gaId = process.env.NEXT_PUBLIC_GA_ID;
+
 export default function RootLayout({ children }) {
   return (
     <html
@@ -177,6 +180,22 @@ export default function RootLayout({ children }) {
       data-font="source-sans"
       suppressHydrationWarning
     >
+      {gaId ? (
+        <head>
+          <Script
+            src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+            strategy="afterInteractive"
+          />
+          <Script id="google-analytics" strategy="afterInteractive">
+            {`
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', '${gaId}');
+            `}
+          </Script>
+        </head>
+      ) : null}
       <body className="flex min-h-full flex-col font-sans">
         <script dangerouslySetInnerHTML={{ __html: fontBootstrapScript }} />
         <AppProviders>{children}</AppProviders>
