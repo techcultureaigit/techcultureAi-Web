@@ -6,19 +6,14 @@ import ScrollReveal from "@/components/ScrollReveal";
 
 const PARTNER_LOGOS = [
   {
+    name: "Burger King",
+    website: "https://www.burgerking.com/",
+    logo: "https://commons.wikimedia.org/wiki/Special:FilePath/Burger_King_2020.svg",
+  },
+  {
     name: "Airbnb",
     website: "https://www.airbnb.com/",
     logo: "https://commons.wikimedia.org/wiki/Special:FilePath/Airbnb_Logo_B%C3%A9lo.svg",
-  },
-  {
-    name: "GoTu",
-    website: "https://gotu.com/",
-    logo: "https://gotu.com/wp-content/uploads/2024/05/GoTu-Logo.svg",
-  },
-  {
-    name: "Abra Dental",
-    website: "https://abradental.com/",
-    logo: "https://abradental.com/wp-content/uploads/2022/09/Asset-30@4x-1.png",
   },
   {
     name: "Aspen Dental",
@@ -31,14 +26,9 @@ const PARTNER_LOGOS = [
     logo: "https://www.godental365.com/wp-content/uploads/2025/05/cropped-Dental365-Logo.png",
   },
   {
-    name: "Lakshmi Stores",
-    website: "https://www.lakshmistores.com/",
-    logo: "https://www.lakshmistores.com/cdn/shop/files/PSD-LS-Logo-SS_779b7b52-895c-4464-8331-57b77e4e9619.png?v=1639413648",
-  },
-  {
-    name: "Shoppin",
-    website: "https://shoppin.app/",
-    logo: "https://shoppin.app/images/shoppin-full-logo.png",
+    name: "GoTu",
+    website: "https://gotu.com/",
+    logo: "https://gotu.com/wp-content/uploads/2024/05/GoTu-Logo.svg",
   },
   {
     name: "ChemScience",
@@ -46,24 +36,34 @@ const PARTNER_LOGOS = [
     logo: "https://www.chemscience.com/assets/front/logo/chemscience.svg",
   },
   {
-    name: "IPO Master",
-    website: "https://ipomaster.com/",
-    logo: "/ipo-master-logo.webp",
-  },
-  {
-    name: "Burger King",
-    website: "https://www.burgerking.com/",
-    logo: "https://commons.wikimedia.org/wiki/Special:FilePath/Burger_King_2020.svg",
-  },
-  {
-    name: "Bharat Demographic Research",
-    website: "https://bharatdemographic.com/",
-    logo: "https://bharatdemographic.com/images/logo%20bdr.jpg",
+    name: "Lakshmi Stores",
+    website: "https://www.lakshmistores.com/",
+    logo: "https://www.lakshmistores.com/cdn/shop/files/PSD-LS-Logo-SS_779b7b52-895c-4464-8331-57b77e4e9619.png?v=1639413648",
   },
   {
     name: "EZ Wealth",
     website: "https://www.ezwealth.in/",
     logo: "https://www.ezwealth.in/logo.svg",
+  },
+  {
+    name: "Abra Dental",
+    website: "https://abradental.com/",
+    logo: "https://abradental.com/wp-content/uploads/2022/09/Asset-30@4x-1.png",
+  },
+  {
+    name: "Shoppin",
+    website: "https://shoppin.app/",
+    logo: "https://shoppin.app/images/shoppin-full-logo.png",
+  },
+  {
+    name: "IPO Master",
+    website: "https://ipomaster.com/",
+    logo: "/ipo-master-logo.webp",
+  },
+  {
+    name: "Bharat Demographic Research",
+    website: "https://bharatdemographic.com/",
+    logo: "https://bharatdemographic.com/images/logo%20bdr.jpg",
   },
 ];
 
