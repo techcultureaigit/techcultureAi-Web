@@ -84,11 +84,19 @@
   color: var(--inv-ink);
 }
 
+.tc-invoice-bill-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.15fr);
+  gap: 18px 24px;
+  align-items: start;
+  margin: 0 0 18px;
+}
+
 .tc-invoice-meta-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px 24px;
-  margin: 0 0 18px;
+  gap: 8px 16px;
+  margin: 0;
   padding: 12px 14px;
   border: 1px solid var(--inv-line);
   border-radius: 8px;
@@ -109,17 +117,6 @@
   color: var(--inv-ink);
 }
 
-.tc-invoice-parties {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin-bottom: 20px;
-}
-
-.tc-invoice-parties-full {
-  grid-template-columns: 1fr;
-}
-
 .tc-invoice-party h3 {
   margin: 0 0 8px;
   font-size: 11px;
@@ -138,19 +135,7 @@
   font-size: 11px;
   line-height: 1.55;
   color: #364152;
-}
-
-.tc-invoice-party-inline {
-  margin: 0 !important;
-  font-size: 12px !important;
-  line-height: 1.6 !important;
-  color: #364152;
-  white-space: normal;
-}
-
-.tc-invoice-party-inline strong {
-  color: var(--inv-ink);
-  font-weight: 700;
+  white-space: pre-wrap;
 }
 
 .tc-invoice-table-wrap {
@@ -198,14 +183,26 @@
   word-break: break-word;
 }
 
+.tc-invoice-summary-row-wrap {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px 20px;
+  align-items: start;
+  margin-bottom: 12px;
+}
+
 .tc-invoice-summary {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 
 .tc-invoice-summary-card {
   width: min(280px, 100%);
+  background: #edf4fb;
+  border: 1px solid #d6e6f5;
+  border-radius: 8px;
+  padding: 10px 12px;
 }
 
 .tc-invoice-summary-row {
@@ -227,7 +224,7 @@
 }
 
 .tc-invoice-words {
-  margin: 0 0 16px;
+  margin: 8px 0 0;
   font-size: 12px;
   color: #314054;
 }
@@ -243,11 +240,19 @@
   font-weight: 750;
 }
 
+.tc-invoice-footer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(180px, 0.85fr);
+  gap: 16px 20px;
+  align-items: start;
+  margin: 16px 0 0;
+}
+
 .tc-invoice-boxes {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 14px;
-  margin: 16px 0 18px;
+  gap: 12px;
+  margin: 0;
 }
 
 .tc-invoice-box {
@@ -275,7 +280,7 @@
   display: flex;
   justify-content: flex-end;
   text-align: right;
-  margin-top: 18px;
+  margin-top: 0;
   width: 100%;
 }
 
@@ -327,10 +332,16 @@
     gap: 12px;
   }
 
-  .tc-invoice-parties,
+  .tc-invoice-bill-meta,
+  .tc-invoice-summary-row-wrap,
+  .tc-invoice-footer-grid,
   .tc-invoice-boxes {
     grid-template-columns: 1fr;
     gap: 12px;
+  }
+
+  .tc-invoice-meta-grid {
+    grid-template-columns: 1fr;
   }
 
   .tc-invoice-meta {

@@ -209,51 +209,77 @@ export async function renderInvoicePdfBuffer(invoice, opts = {}) {
     .strokeColor("#111827")
     .lineWidth(1.2)
     .stroke();
-  y += 12;
+  y += 14;
 
-  // Meta grid
-  const metaH = 62;
-  doc.roundedRect(left, y, contentWidth, metaH, 4).fillAndStroke("#f8fafc", "#cfd8e3");
-  const metaCol = contentWidth / 2 - 10;
-  const metaLeft = [
+  // BILL TO (left) + invoice meta box (right) — reference layout
+  const gap = 16;
+  const billW = Math.floor(contentWidth * 0.46);
+  const metaW = contentWidth - billW - gap;
+  const metaX = left + billW + gap;
+
+  const billLines = [];
+  if (billTo.address) {
+    String(billTo.address)
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .forEach((l) => billLines.push(l));
+  }
+  if (billTo.gstin) billLines.push(`GST number: ${billTo.gstin}`);
+  if (billTo.stateName) {
+    billLines.push(
+      `State Name: ${billTo.stateName}${billTo.stateCode ? `, Code: ${billTo.stateCode}` : ""}`,
+    );
+  }
+  if (billTo.cin) billLines.push(`CIN: ${billTo.cin}`);
+  if (billTo.email) billLines.push(`E-Mail: ${billTo.email}`);
+  if (billTo.phone) billLines.push(`Phone: ${billTo.phone}`);
+
+  doc.font("Helvetica-Bold").fontSize(9).fillColor("#1f4e79").text("BILL TO", left, y);
+  let billY = y + 14;
+  doc.font("Helvetica-Bold").fontSize(11).fillColor("#111827");
+  billY += drawWrapped(doc, billTo.name || "—", left, billY, billW) + 4;
+  doc.font("Helvetica").fontSize(9).fillColor("#364152");
+  for (const line of billLines) {
+    billY += drawWrapped(doc, line, left, billY, billW) + 2;
+  }
+
+  const metaPad = 10;
+  const metaColGap = 10;
+  const metaInnerCol = (metaW - metaPad * 2 - metaColGap) / 2;
+  const metaLeftX = metaX + metaPad;
+  const metaRightX = metaLeftX + metaInnerCol + metaColGap;
+  const metaLeftLines = [
     `Invoice No.: ${invoiceNo}`,
     `Invoice Date: ${formatInvoiceDate(invoice.date)}`,
     `Due Date: ${formatInvoiceDate(invoice.dueDate)}`,
   ];
-  const metaRight = [
+  const metaRightLines = [
     `Place of Supply: ${invoice.placeOfSupply || "Delhi (07)"}`,
     `Account Manager: ${invoice.accountManager || "—"}`,
     `Invoice Duration: ${invoice.invoiceDuration || "—"}`,
   ];
-  doc.font("Helvetica").fontSize(9).fillColor("#364152");
-  let my = y + 10;
-  for (const line of metaLeft) {
-    doc.text(line, left + 10, my, { width: metaCol });
-    my += 14;
+  doc.font("Helvetica").fontSize(8);
+  const metaRowGap = 4;
+  const metaRowHeights = metaLeftLines.map((leftLine, i) => {
+    const leftH = doc.heightOfString(leftLine, { width: metaInnerCol });
+    const rightH = doc.heightOfString(metaRightLines[i], { width: metaInnerCol });
+    return Math.max(leftH, rightH, 10);
+  });
+  const metaContentH = metaRowHeights.reduce((sum, h, i) => {
+    return sum + h + (i < metaRowHeights.length - 1 ? metaRowGap : 0);
+  }, 0);
+  const metaH = metaPad * 2 + metaContentH;
+  doc.roundedRect(metaX, y, metaW, metaH, 6).fillAndStroke("#f8fafc", "#cfd8e3");
+  doc.font("Helvetica").fontSize(8).fillColor("#364152");
+  let metaY = y + metaPad;
+  for (let i = 0; i < metaLeftLines.length; i++) {
+    doc.text(metaLeftLines[i], metaLeftX, metaY, { width: metaInnerCol });
+    doc.text(metaRightLines[i], metaRightX, metaY, { width: metaInnerCol });
+    metaY += metaRowHeights[i] + metaRowGap;
   }
-  my = y + 10;
-  for (const line of metaRight) {
-    doc.text(line, left + metaCol + 20, my, { width: metaCol });
-    my += 14;
-  }
-  y += metaH + 14;
 
-  // BILL TO — single inline row
-  doc.font("Helvetica-Bold").fontSize(9).fillColor("#1f4e79").text("BILL TO", left, y);
-  y += 14;
-  const billToParts = [billTo.name || "—"];
-  if (billTo.address) billToParts.push(String(billTo.address).replace(/\s*\n\s*/g, ", "));
-  if (billTo.gstin) billToParts.push(`GST number: ${billTo.gstin}`);
-  if (billTo.stateName) {
-    billToParts.push(
-      `State Name: ${billTo.stateName}${billTo.stateCode ? `, Code: ${billTo.stateCode}` : ""}`,
-    );
-  }
-  if (billTo.cin) billToParts.push(`CIN: ${billTo.cin}`);
-  if (billTo.email) billToParts.push(`E-Mail: ${billTo.email}`);
-  if (billTo.phone) billToParts.push(`Phone: ${billTo.phone}`);
-  doc.font("Helvetica").fontSize(9).fillColor("#364152");
-  y += drawWrapped(doc, billToParts.join(" · "), left, y, contentWidth) + 14;
+  y = Math.max(billY, y + metaH) + 16;
 
   const cols = [
     { label: "Sl", width: 28, align: "center" },
@@ -316,11 +342,21 @@ export async function renderInvoicePdfBuffer(invoice, opts = {}) {
   y += 12;
   const boxW = 230;
   const boxX = right - boxW;
-  const totalsH = gst.mode === "cgst_sgst" ? 96 : gst.mode === "igst" ? 80 : 70;
+  const totalsH = gst.mode === "cgst_sgst" ? 88 : gst.mode === "igst" ? 74 : 64;
   if (y + totalsH > doc.page.height - 80) {
     doc.addPage();
     y = 36;
   }
+
+  // Amount in words (left) + totals box (right)
+  const wordsW = boxX - left - 12;
+  doc
+    .font("Helvetica")
+    .fontSize(9)
+    .fillColor("#364152")
+    .text(`Amount Chargeable (in words): ${amountInWords(grandTotal)}`, left, y + 8, {
+      width: wordsW,
+    });
 
   doc.roundedRect(boxX, y, boxW, totalsH, 6).fillAndStroke("#edf4fb", "#d6e6f5");
   let ty = y + 10;
@@ -331,10 +367,10 @@ export async function renderInvoicePdfBuffer(invoice, opts = {}) {
       .fillColor(bold ? "#1f4e79" : "#5b6775")
       .text(label, boxX + 12, ty);
     doc
-      .font(bold ? "Helvetica-Bold" : "Helvetica-Bold")
+      .font("Helvetica-Bold")
       .fillColor(bold ? "#1f4e79" : "#1f2937")
       .text(value, boxX + 12, ty, { width: boxW - 24, align: "right" });
-    ty += 16;
+    ty += 15;
   };
 
   row("Taxable Amount", formatInr(subTotal));
@@ -354,16 +390,7 @@ export async function renderInvoicePdfBuffer(invoice, opts = {}) {
   ty += 4;
   row("Total", formatInr(grandTotal), true);
 
-  y += totalsH + 12;
-  doc
-    .font("Helvetica")
-    .fontSize(10)
-    .fillColor("#364152")
-    .text(`Amount Chargeable (in words): ${amountInWords(grandTotal)}`, left, y, {
-      width: contentWidth,
-    });
-
-  y += 26;
+  y += totalsH + 16;
   const bankLines = [
     `Beneficiary Name: ${company.bank.beneficiaryName}`,
     `Bank Name: ${company.bank.bankName}`,
@@ -372,89 +399,91 @@ export async function renderInvoicePdfBuffer(invoice, opts = {}) {
     `Account No.: ${company.bank.accountNo}`,
     `IFSC Code: ${company.bank.ifsc}`,
   ];
+  const leftColW = Math.floor(contentWidth * 0.62);
+  const signBlockW = contentWidth - leftColW - 14;
+  const signX = left + leftColW + 14;
   const bankBoxH = 24 + bankLines.length * 12 + 8;
-  const declTextH = doc.heightOfString(company.declaration, { width: contentWidth - 20 });
+  const declTextH = doc.heightOfString(company.declaration, { width: leftColW - 20 });
   const notesH = invoice.notes
-    ? doc.heightOfString(`Notes: ${invoice.notes}`, { width: contentWidth - 20 }) + 8
+    ? doc.heightOfString(`Notes: ${invoice.notes}`, { width: leftColW - 20 }) + 8
     : 0;
   const declBoxH = 24 + declTextH + notesH + 12;
+  const footerH = bankBoxH + 10 + declBoxH;
 
-  if (y + bankBoxH + declBoxH + 20 > doc.page.height - 60) {
+  if (y + Math.max(footerH, 130) > doc.page.height - 40) {
     doc.addPage();
     y = 36;
   }
 
-  // BANK DETAILS — full row
-  doc.roundedRect(left, y, contentWidth, bankBoxH, 6).fillAndStroke("#f7fbfe", "#d6e6f5");
+  const footerTop = y;
+
+  // BANK DETAILS — left column
+  doc.roundedRect(left, y, leftColW, bankBoxH, 6).fillAndStroke("#f7fbfe", "#d6e6f5");
   doc.font("Helvetica-Bold").fontSize(9).fillColor("#1f4e79").text("BANK DETAILS", left + 10, y + 10);
   doc.font("Helvetica").fontSize(8).fillColor("#364152");
   let by = y + 24;
   for (const line of bankLines) {
-    by += drawWrapped(doc, line, left + 10, by, contentWidth - 20) + 2;
+    by += drawWrapped(doc, line, left + 10, by, leftColW - 20) + 2;
   }
   y += bankBoxH + 10;
 
-  // DECLARATION — next row
-  if (y + declBoxH > doc.page.height - 60) {
-    doc.addPage();
-    y = 36;
-  }
-  doc.roundedRect(left, y, contentWidth, declBoxH, 6).fillAndStroke("#f7fbfe", "#d6e6f5");
+  // DECLARATION — under bank
+  doc.roundedRect(left, y, leftColW, declBoxH, 6).fillAndStroke("#f7fbfe", "#d6e6f5");
   doc.font("Helvetica-Bold").fontSize(9).fillColor("#1f4e79").text("DECLARATION", left + 10, y + 10);
   doc.font("Helvetica").fontSize(8).fillColor("#364152");
   let dy = y + 24;
-  dy += drawWrapped(doc, company.declaration, left + 10, dy, contentWidth - 20) + 6;
+  dy += drawWrapped(doc, company.declaration, left + 10, dy, leftColW - 20) + 6;
   if (invoice.notes) {
-    drawWrapped(doc, `Notes: ${invoice.notes}`, left + 10, dy, contentWidth - 20);
-  }
-  y += declBoxH + 18;
-  if (y + 120 > doc.page.height - 40) {
-    doc.addPage();
-    y = 36;
+    drawWrapped(doc, `Notes: ${invoice.notes}`, left + 10, dy, leftColW - 20);
   }
 
-  const signBlockW = 240;
-  const signX = right - signBlockW;
+  // Signature — right of bank/declaration
+  let sy = footerTop;
   doc
     .font("Helvetica-Bold")
-    .fontSize(10)
+    .fontSize(9)
     .fillColor("#111827")
-    .text("For TECHCULTURE TECHNOLOGIES PRIVATE LIMITED", signX, y, {
+    .text("For TECHCULTURE TECHNOLOGIES PRIVATE LIMITED", signX, sy, {
       width: signBlockW,
       align: "right",
     });
-  y += 28;
+  sy += 22;
 
   if (fs.existsSync(signPath)) {
     try {
-      doc.image(signPath, signX + 40, y, { width: 180, height: 56, fit: [180, 56] });
-      y += 62;
+      const imgW = Math.min(170, signBlockW);
+      doc.image(signPath, signX + signBlockW - imgW, sy, {
+        width: imgW,
+        height: 52,
+        fit: [imgW, 52],
+      });
+      sy += 58;
     } catch {
-      y += 20;
+      sy += 16;
     }
   } else {
-    y += 20;
+    sy += 16;
   }
 
   doc
-    .moveTo(signX + 40, y)
-    .lineTo(right, y)
+    .moveTo(signX + 20, sy)
+    .lineTo(right, sy)
     .strokeColor("#cfd8e3")
     .lineWidth(0.8)
     .stroke();
-  y += 8;
+  sy += 8;
   doc
     .font("Helvetica-Bold")
     .fontSize(10)
     .fillColor("#111827")
-    .text("Authorised Signatory", signX, y, { width: signBlockW, align: "right" });
-  y += 16;
+    .text("Authorised Signatory", signX, sy, { width: signBlockW, align: "right" });
+  sy += 14;
 
   doc
     .font("Helvetica")
     .fontSize(8)
     .fillColor("#7b8796")
-    .text(formatInvoiceDate(invoice.date), signX, y, { width: signBlockW, align: "right" });
+    .text(formatInvoiceDate(invoice.date), signX, sy, { width: signBlockW, align: "right" });
 
   doc.end();
 

@@ -424,6 +424,7 @@ export function buildInvoicePdfHtml(invoice, opts = {}) {
       return `<tr>
         <td style="padding:9px 10px;border-bottom:1px solid #e5ebf2;text-align:center;font-size:12px;color:#314054">${index + 1}</td>
         <td style="padding:9px 10px;border-bottom:1px solid #e5ebf2;font-size:12px;color:#314054">${esc(item.description || "—")}</td>
+        <td style="padding:9px 10px;border-bottom:1px solid #e5ebf2;text-align:center;font-size:12px;color:#314054">${esc(item.hsnSac || "—")}</td>
         <td style="padding:9px 10px;border-bottom:1px solid #e5ebf2;text-align:center;font-size:12px;color:#314054">${num(item.qty)}</td>
         <td style="padding:9px 10px;border-bottom:1px solid #e5ebf2;text-align:right;font-size:12px;color:#314054">${formatInr(item.rate)}</td>
         <td style="padding:9px 10px;border-bottom:1px solid #e5ebf2;text-align:right;font-size:12px;color:#314054">${formatInr(lineAmount(item))}</td>
@@ -454,45 +455,67 @@ export function buildInvoicePdfHtml(invoice, opts = {}) {
     </tr>
   </table>
 
-  <div style="margin:0 0 18px">
-    <div style="font-size:11px;letter-spacing:0.8px;color:#1f4e79;font-weight:700;margin-bottom:8px">BILL TO</div>
-    <div style="font-size:12px;line-height:1.6;color:#364152">
-      <strong style="color:#1f2937">${esc(billTo.name || "—")}</strong>${
-        billTo.address
-          ? ` · ${esc(String(billTo.address).replace(/\s*\n\s*/g, ", "))}`
-          : ""
-      }${billTo.gstin ? ` · GST number: ${esc(billTo.gstin)}` : ""}${
-        billTo.stateName
-          ? ` · State Name: ${esc(billTo.stateName)}${billTo.stateCode ? `, Code: ${esc(billTo.stateCode)}` : ""}`
-          : ""
-      }${billTo.cin ? ` · CIN: ${esc(billTo.cin)}` : ""}${
-        billTo.email ? ` · E-Mail: ${esc(billTo.email)}` : ""
-      }${billTo.phone ? ` · Phone: ${esc(billTo.phone)}` : ""}
-    </div>
-  </div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 18px">
+    <tr>
+      <td valign="top" width="48%" style="padding:0 14px 0 0">
+        <div style="font-size:11px;letter-spacing:0.8px;color:#1f4e79;font-weight:700;margin-bottom:8px">BILL TO</div>
+        <div style="font-size:13px;font-weight:700;color:#111827;margin-bottom:6px">${esc(billTo.name || "—")}</div>
+        ${billTo.address ? `<div style="font-size:11px;line-height:1.55;color:#364152">${nl2br(billTo.address)}</div>` : ""}
+        ${billTo.gstin ? `<div style="font-size:11px;line-height:1.55;color:#364152">GST number: ${esc(billTo.gstin)}</div>` : ""}
+        ${
+          billTo.stateName
+            ? `<div style="font-size:11px;line-height:1.55;color:#364152">State Name: ${esc(billTo.stateName)}${billTo.stateCode ? `, Code: ${esc(billTo.stateCode)}` : ""}</div>`
+            : ""
+        }
+        ${billTo.email ? `<div style="font-size:11px;line-height:1.55;color:#364152">E-Mail: ${esc(billTo.email)}</div>` : ""}
+        ${billTo.phone ? `<div style="font-size:11px;line-height:1.55;color:#364152">Phone: ${esc(billTo.phone)}</div>` : ""}
+      </td>
+      <td valign="top" width="52%" style="padding:0 0 0 6px">
+        <div style="background:#f8fafc;border:1px solid #cfd8e3;border-radius:8px;padding:12px 14px">
+          <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
+            <tr>
+              <td valign="top" style="padding:4px 8px 4px 0;font-size:11px;line-height:1.45;color:#5b6775;width:50%">Invoice No.: <strong style="color:#1f2937">${esc(invoiceNo)}</strong></td>
+              <td valign="top" style="padding:4px 0;font-size:11px;line-height:1.45;color:#5b6775;width:50%">Place of Supply: <strong style="color:#1f2937">${esc(invoice.placeOfSupply || "Delhi (07)")}</strong></td>
+            </tr>
+            <tr>
+              <td valign="top" style="padding:4px 8px 4px 0;font-size:11px;line-height:1.45;color:#5b6775">Invoice Date: <strong style="color:#1f2937">${esc(formatInvoiceDate(invoice.date))}</strong></td>
+              <td valign="top" style="padding:4px 0;font-size:11px;line-height:1.45;color:#5b6775">Account Manager: <strong style="color:#1f2937">${esc(invoice.accountManager || "—")}</strong></td>
+            </tr>
+            <tr>
+              <td valign="top" style="padding:4px 8px 4px 0;font-size:11px;line-height:1.45;color:#5b6775">Due Date: <strong style="color:#1f2937">${esc(formatInvoiceDate(invoice.dueDate))}</strong></td>
+              <td valign="top" style="padding:4px 0;font-size:11px;line-height:1.45;color:#5b6775">Invoice Duration: <strong style="color:#1f2937">${esc(invoice.invoiceDuration || "—")}</strong></td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+  </table>
 
   <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:14px">
     <thead>
       <tr style="background:#1f4e79;color:#ffffff">
-        <th style="padding:10px;text-align:center;font-size:11px;width:48px">Sl</th>
+        <th style="padding:10px;text-align:center;font-size:11px;width:40px">Sl</th>
         <th style="padding:10px;text-align:left;font-size:11px">Description</th>
-        <th style="padding:10px;text-align:center;font-size:11px;width:70px">Qty</th>
-        <th style="padding:10px;text-align:right;font-size:11px;width:110px">Rate (INR)</th>
-        <th style="padding:10px;text-align:right;font-size:11px;width:120px">Amount (INR)</th>
+        <th style="padding:10px;text-align:center;font-size:11px;width:70px">HSN/SAC</th>
+        <th style="padding:10px;text-align:center;font-size:11px;width:50px">Qty</th>
+        <th style="padding:10px;text-align:right;font-size:11px;width:90px">Rate</th>
+        <th style="padding:10px;text-align:right;font-size:11px;width:100px">Amount</th>
       </tr>
     </thead>
     <tbody>
-      ${itemRows || `<tr><td colspan="5" style="padding:12px;text-align:center;color:#7d8796;font-size:12px">No line items</td></tr>`}
+      ${itemRows || `<tr><td colspan="6" style="padding:12px;text-align:center;color:#7d8796;font-size:12px">No line items</td></tr>`}
     </tbody>
   </table>
 
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:12px">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:16px">
     <tr>
-      <td></td>
-      <td width="260" style="background:#edf4fb;border:1px solid #d6e6f5;border-radius:8px;padding:10px 12px">
+      <td valign="top" style="padding:8px 12px 0 0;font-size:12px;color:#364152">
+        Amount Chargeable (in words): <strong>${esc(amountInWords(grandTotal))}</strong>
+      </td>
+      <td width="260" valign="top" style="background:#edf4fb;border:1px solid #d6e6f5;border-radius:8px;padding:10px 12px">
         <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
           <tr>
-            <td style="padding:4px 0;font-size:12px;color:#5b6775">Sub Total</td>
+            <td style="padding:4px 0;font-size:12px;color:#5b6775">Taxable Amount</td>
             <td style="padding:4px 0;font-size:12px;text-align:right;font-weight:700">${formatInr(subTotal)}</td>
           </tr>
           <tr>
@@ -500,7 +523,7 @@ export function buildInvoicePdfHtml(invoice, opts = {}) {
             <td style="padding:4px 0;font-size:12px;text-align:right;font-weight:700">${invoice.gstApplicable ? formatInr(gstAmount) : esc(invoice.gstNote || "Not Applicable")}</td>
           </tr>
           <tr>
-            <td style="padding:8px 0 2px;font-size:13px;color:#1f4e79;font-weight:800;border-top:1px solid #c9daf0">Grand Total</td>
+            <td style="padding:8px 0 2px;font-size:13px;color:#1f4e79;font-weight:800;border-top:1px solid #c9daf0">Total</td>
             <td style="padding:8px 0 2px;font-size:13px;text-align:right;color:#1f4e79;font-weight:800;border-top:1px solid #c9daf0">${formatInr(grandTotal)}</td>
           </tr>
         </table>
@@ -508,31 +531,34 @@ export function buildInvoicePdfHtml(invoice, opts = {}) {
     </tr>
   </table>
 
-  <p style="margin:0 0 16px;font-size:12px;color:#364152">Amount Chargeable (in words): <strong>${esc(amountInWords(grandTotal))}</strong></p>
-
-  <div style="border:1px solid #d6e6f5;background:#f7fbfe;border-radius:8px;padding:12px;margin-bottom:12px">
-    <div style="font-size:11px;letter-spacing:0.6px;color:#1f4e79;font-weight:800;margin-bottom:8px">BANK DETAILS</div>
-    <div style="font-size:11px;line-height:1.55;color:#364152">Beneficiary Name: ${esc(company.bank.beneficiaryName)}</div>
-    <div style="font-size:11px;line-height:1.55;color:#364152">Bank Name: ${esc(company.bank.bankName)}</div>
-    <div style="font-size:11px;line-height:1.55;color:#364152">Branch: ${esc(company.bank.branch)}</div>
-    <div style="font-size:11px;line-height:1.55;color:#364152">Account Type: ${esc(company.bank.accountType)}</div>
-    <div style="font-size:11px;line-height:1.55;color:#364152">Account No.: ${esc(company.bank.accountNo)}</div>
-    <div style="font-size:11px;line-height:1.55;color:#364152">IFSC Code: ${esc(company.bank.ifsc)}</div>
-  </div>
-  <div style="border:1px solid #d6e6f5;background:#f7fbfe;border-radius:8px;padding:12px;margin-bottom:16px">
-    <div style="font-size:11px;letter-spacing:0.6px;color:#1f4e79;font-weight:800;margin-bottom:8px">DECLARATION</div>
-    <div style="font-size:11px;line-height:1.55;color:#364152">${esc(company.declaration)}</div>
-    ${invoice.notes ? `<div style="margin-top:10px;font-size:11px;line-height:1.55;color:#364152">Notes: ${esc(invoice.notes)}</div>` : ""}
-  </div>
-
-  <div style="width:100%;margin-top:16px;text-align:right">
-    <div style="display:inline-block;text-align:right;max-width:280px">
-      <div style="font-size:12px;font-weight:700;color:#111827;margin-bottom:8px">For TECHCULTURE TECHNOLOGIES PRIVATE LIMITED</div>
-      ${signUri ? `<img src="${signUri}" alt="Signature" style="display:block;margin:0 0 6px auto;height:56px;width:auto;max-width:200px;border:0" />` : ""}
-      <div style="border-top:1px solid #cfd8e3;padding-top:8px;font-size:12px;font-weight:700;color:#111827">Authorised Signatory</div>
-      <div style="margin-top:6px;font-size:10px;color:#7b8796">${esc(formatInvoiceDate(invoice.date))}</div>
-    </div>
-  </div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
+    <tr>
+      <td valign="top" width="62%" style="padding:0 14px 0 0">
+        <div style="border:1px solid #d6e6f5;background:#f7fbfe;border-radius:8px;padding:12px;margin-bottom:12px">
+          <div style="font-size:11px;letter-spacing:0.6px;color:#1f4e79;font-weight:800;margin-bottom:8px">BANK DETAILS</div>
+          <div style="font-size:11px;line-height:1.55;color:#364152">Beneficiary Name: ${esc(company.bank.beneficiaryName)}</div>
+          <div style="font-size:11px;line-height:1.55;color:#364152">Bank Name: ${esc(company.bank.bankName)}</div>
+          <div style="font-size:11px;line-height:1.55;color:#364152">Branch: ${esc(company.bank.branch)}</div>
+          <div style="font-size:11px;line-height:1.55;color:#364152">Account Type: ${esc(company.bank.accountType)}</div>
+          <div style="font-size:11px;line-height:1.55;color:#364152">Account No.: ${esc(company.bank.accountNo)}</div>
+          <div style="font-size:11px;line-height:1.55;color:#364152">IFSC Code: ${esc(company.bank.ifsc)}</div>
+        </div>
+        <div style="border:1px solid #d6e6f5;background:#f7fbfe;border-radius:8px;padding:12px">
+          <div style="font-size:11px;letter-spacing:0.6px;color:#1f4e79;font-weight:800;margin-bottom:8px">DECLARATION</div>
+          <div style="font-size:11px;line-height:1.55;color:#364152">${esc(company.declaration)}</div>
+          ${invoice.notes ? `<div style="margin-top:10px;font-size:11px;line-height:1.55;color:#364152">Notes: ${esc(invoice.notes)}</div>` : ""}
+        </div>
+      </td>
+      <td valign="top" width="38%" align="right" style="padding:0">
+        <div style="display:inline-block;text-align:right;max-width:240px">
+          <div style="font-size:11px;font-weight:700;color:#111827;margin-bottom:8px">For TECHCULTURE TECHNOLOGIES PRIVATE LIMITED</div>
+          ${signUri ? `<img src="${signUri}" alt="Signature" style="display:block;margin:0 0 6px auto;height:56px;width:auto;max-width:200px;border:0" />` : ""}
+          <div style="border-top:1px solid #cfd8e3;padding-top:8px;font-size:12px;font-weight:700;color:#111827">Authorised Signatory</div>
+          <div style="margin-top:6px;font-size:10px;color:#7b8796">${esc(formatInvoiceDate(invoice.date))}</div>
+        </div>
+      </td>
+    </tr>
+  </table>
 </body></html>`;
 }
 
