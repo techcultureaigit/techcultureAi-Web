@@ -118,7 +118,7 @@ export function buildInvoiceEmail(payload: InvoiceMailPayload) {
   let closing = "Thank you,";
 
   if (kind === "reminder") {
-    subject = `Reminder: Invoice ${payload.invoiceId} is still ${payload.status}`;
+    subject = `Payment reminder — Invoice ${payload.invoiceId}`;
     intro =
       "This is a friendly reminder that your invoice is still awaiting payment. Please complete payment at your earliest convenience.";
   } else if (kind === "paid") {
@@ -135,7 +135,6 @@ export function buildInvoiceEmail(payload: InvoiceMailPayload) {
     "",
     `Invoice: ${payload.invoiceId}`,
     `Amount: ${amount}`,
-    `Status: ${payload.status}`,
     `Date: ${payload.date}`,
     "",
     ...(lines.length ? ["Line items:", ...lines, ""] : []),
@@ -149,9 +148,6 @@ export function buildInvoiceEmail(payload: InvoiceMailPayload) {
     .filter((line) => line !== undefined)
     .join("\n");
 
-  const statusColor =
-    kind === "paid" ? "#16945b" : payload.status.toLowerCase() === "overdue" ? "#d26447" : "#d77a1e";
-
   const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;color:#243042;line-height:1.5;max-width:640px">
       <h2 style="margin:0 0 12px;color:#1f4e79">INVOICE ${payload.invoiceId}</h2>
@@ -160,7 +156,6 @@ export function buildInvoiceEmail(payload: InvoiceMailPayload) {
       <table style="border-collapse:collapse;width:100%;margin:0 0 18px">
         <tr><td style="padding:8px 0;color:#7d8796">Invoice</td><td style="padding:8px 0;font-weight:700">${payload.invoiceId}</td></tr>
         <tr><td style="padding:8px 0;color:#7d8796">Amount</td><td style="padding:8px 0;font-weight:700">${amount}</td></tr>
-        <tr><td style="padding:8px 0;color:#7d8796">Status</td><td style="padding:8px 0;font-weight:700;color:${statusColor}">${payload.status}</td></tr>
         <tr><td style="padding:8px 0;color:#7d8796">Date</td><td style="padding:8px 0;font-weight:700">${payload.date}</td></tr>
       </table>
       ${

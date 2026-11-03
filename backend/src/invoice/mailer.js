@@ -72,24 +72,26 @@ export function createTransport(overrides = {}) {
   };
 }
 
-export function getInvoiceMailAttachments() {
-  const logoPath = path.join(ASSETS_DIR, "techculture-logo.png");
-  const signPath = path.join(ASSETS_DIR, "authorised-signatory.png");
+export function getInvoiceMailAttachments(pdfAttachment) {
   const attachments = [];
+  const logoPath = path.join(ASSETS_DIR, "techculture-logo.png");
 
   if (fs.existsSync(logoPath)) {
     attachments.push({
       filename: "techculture-logo.png",
       path: logoPath,
       cid: "tc-logo@invoice",
+      contentDisposition: "inline",
     });
   }
-  if (fs.existsSync(signPath)) {
+
+  if (pdfAttachment?.content) {
     attachments.push({
-      filename: "authorised-signatory.png",
-      path: signPath,
-      cid: "tc-sign@invoice",
+      filename: pdfAttachment.filename || "Invoice.pdf",
+      content: pdfAttachment.content,
+      contentType: "application/pdf",
     });
   }
+
   return attachments;
 }

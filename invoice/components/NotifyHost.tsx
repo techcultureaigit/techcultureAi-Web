@@ -114,26 +114,43 @@ export default function NotifyHost() {
             className={`tc-confirm-card tc-confirm-${confirm.tone || "warning"}`}
             role="dialog"
             aria-modal="true"
+            aria-labelledby="tc-confirm-title"
           >
-            <div className="tc-confirm-icon">
-              {(() => {
-                const Icon = toneIcon(confirm.tone || "warning");
-                return <Icon size={22} />;
-              })()}
+            <div className="tc-confirm-header">
+              <div className="tc-confirm-icon">
+                {(() => {
+                  const Icon = toneIcon(confirm.tone || "warning");
+                  return <Icon size={22} />;
+                })()}
+              </div>
+              <div className="tc-confirm-copy">
+                <h3 id="tc-confirm-title">{confirm.title || "Please confirm"}</h3>
+                <p>{confirm.message}</p>
+              </div>
             </div>
-            <h3>{confirm.title || "Please confirm"}</h3>
-            <p>{confirm.message}</p>
+
+            {confirm.details?.length ? (
+              <dl className="tc-confirm-details">
+                {confirm.details.map((row) => (
+                  <div key={`${row.label}-${row.value}`} className="tc-confirm-detail-row">
+                    <dt>{row.label}</dt>
+                    <dd>{row.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
+
             <div className="tc-confirm-actions">
               <button
                 type="button"
-                className="btn btn-secondary"
+                className="btn btn-secondary tc-confirm-btn"
                 onClick={() => closeConfirm(false)}
               >
                 {confirm.cancelLabel || "Cancel"}
               </button>
               <button
                 type="button"
-                className={`btn ${
+                className={`btn tc-confirm-btn ${
                   confirm.tone === "error" || confirm.tone === "warning"
                     ? "btn-danger"
                     : "btn-primary"

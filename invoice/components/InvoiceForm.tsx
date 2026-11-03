@@ -10,11 +10,16 @@ import { invoiceApi } from "@/lib/api";
 import { fakeInvoice } from "@/lib/devFaker";
 import type { InvoiceDocument } from "@/lib/invoiceTypes";
 import { gstStateFromNumber } from "@/lib/gstStates";
+import { getAuthUser } from "@/lib/auth";
+import { COMPANY_PROFILE } from "@/lib/companyDefaults";
 import {
+  addDaysToIsoDate,
   calcGrandTotal,
   emptyCommissionRow,
   emptyLineItem,
+  invoiceDurationLabel,
   normalizeInvoice,
+  resolveGstBreakdown,
 } from "@/lib/invoiceUtils";
 import "./InvoiceForm.css";
 
@@ -23,6 +28,11 @@ type Props = {
   customers: CustomerOption[];
   onChange: (next: InvoiceDocument) => void;
   isNew?: boolean;
+  companySettings?: {
+    businessAddress?: string;
+    businessCin?: string;
+    businessLegalName?: string;
+  } | null;
 };
 
 function formatCustomerAddress(address?: {
@@ -46,8 +56,17 @@ function formatCustomerAddress(address?: {
     .join("\n");
 }
 
-export default function InvoiceForm({ value, customers, onChange, isNew = false }: Props) {
-  const invoice = normalizeInvoice(value);
+export default function InvoiceForm({
+  value,
+  customers,
+  onChange,
+  isNew = false,
+  companySettings = null,
+}: Props) {
+  const invoice = normalizeInvoice({
+    ...value,
+    accountManager: value.accountManager || getAuthUser()?.name || "",
+  });
 
   function patch(next: Partial<InvoiceDocument>) {
     const merged = normalizeInvoice({ ...invoice, ...next, id: invoice.id });
@@ -97,11 +116,32 @@ export default function InvoiceForm({ value, customers, onChange, isNew = false 
       customer.placeOfSupply || customer.billingAddress?.state || "";
     const matched = gstin ? gstStateFromNumber(gstin) : null;
 
+    const nextStateName = matched?.stateName || stateName || prev.billTo.stateName || "";
+    const nextStateCode = matched?.code || prev.billTo.stateCode || "";
+    const placeOfSupply = nextStateName
+      ? `${nextStateName}${nextStateCode ? ` (${nextStateCode})` : ""}`
+      : prev.placeOfSupply || "Delhi (07)";
+    const pct = prev.gstPercent || 18;
+    const breakdown = resolveGstBreakdown({
+      subTotal: 100,
+      gstApplicable: Boolean(prev.gstApplicable),
+      gstPercent: pct,
+      buyerStateCode: nextStateCode,
+      buyerGstin: gstin || prev.billTo.gstin,
+      placeOfSupply,
+      sellerStateCode: COMPANY_PROFILE.stateCode,
+    });
     return normalizeInvoice({
       ...prev,
       name,
       email: email || prev.email || "",
       phone: phone || prev.phone || "",
+      placeOfSupply,
+      gstNote: !prev.gstApplicable
+        ? prev.gstNote || "Not Applicable"
+        : breakdown.mode === "igst"
+          ? `IGST${pct} (${pct}%)`
+          : `CGST${pct / 2} (${pct / 2}%) + SGST${pct / 2} (${pct / 2}%)`,
       billTo: {
         ...prev.billTo,
         name,
@@ -109,8 +149,8 @@ export default function InvoiceForm({ value, customers, onChange, isNew = false 
         phone: phone || customer.billingAddress?.phone || prev.billTo.phone || "",
         address: address || prev.billTo.address || "",
         gstin: gstin || prev.billTo.gstin || "",
-        stateName: matched?.stateName || stateName || prev.billTo.stateName || "",
-        stateCode: matched?.code || prev.billTo.stateCode || "",
+        stateName: nextStateName,
+        stateCode: nextStateCode,
       },
       id: prev.id,
     });
@@ -140,6 +180,22 @@ export default function InvoiceForm({ value, customers, onChange, isNew = false 
     }
   }
 
+  function gstNoteFor(billTo: InvoiceDocument["billTo"], placeOfSupply: string, pct: number) {
+    if (!invoice.gstApplicable || pct <= 0) return "Not Applicable";
+    const breakdown = resolveGstBreakdown({
+      subTotal: 100,
+      gstApplicable: true,
+      gstPercent: pct,
+      buyerStateCode: billTo.stateCode,
+      buyerGstin: billTo.gstin,
+      placeOfSupply,
+      sellerStateCode: COMPANY_PROFILE.stateCode,
+    });
+    return breakdown.mode === "igst"
+      ? `IGST${pct} (${pct}%)`
+      : `CGST${pct / 2} (${pct / 2}%) + SGST${pct / 2} (${pct / 2}%)`;
+  }
+
   function updateBillTo(key: keyof InvoiceDocument["billTo"], val: string) {
     const billTo = { ...invoice.billTo, [key]: val };
     if (key === "gstin") {
@@ -149,8 +205,23 @@ export default function InvoiceForm({ value, customers, onChange, isNew = false 
         billTo.stateName = matched.stateName;
       }
     }
+    const placeOfSupply =
+      billTo.stateName
+        ? `${billTo.stateName}${billTo.stateCode ? ` (${billTo.stateCode})` : ""}`
+        : invoice.placeOfSupply || "Delhi (07)";
     patch({
       billTo,
+      placeOfSupply:
+        key === "gstin" || key === "stateName" || key === "stateCode"
+          ? placeOfSupply
+          : invoice.placeOfSupply,
+      gstNote: gstNoteFor(
+        billTo,
+        key === "gstin" || key === "stateName" || key === "stateCode"
+          ? placeOfSupply
+          : invoice.placeOfSupply || "",
+        invoice.gstPercent || 18,
+      ),
       name: key === "name" ? val : billTo.name,
       email: key === "email" ? val : billTo.email,
       phone: key === "phone" ? val : billTo.phone,
@@ -159,14 +230,15 @@ export default function InvoiceForm({ value, customers, onChange, isNew = false 
 
   function updateLine(
     id: string,
-    key: "description" | "qty" | "rate",
+    key: "description" | "hsnSac" | "qty" | "rate",
     val: string,
   ) {
     const lineItems = invoice.lineItems.map((item) =>
       item.id === id
         ? {
             ...item,
-            [key]: key === "description" ? val : Number(val || 0),
+            [key]:
+              key === "description" || key === "hsnSac" ? val : Number(val || 0),
           }
         : item,
     );
@@ -217,7 +289,46 @@ export default function InvoiceForm({ value, customers, onChange, isNew = false 
               <input
                 type="date"
                 value={invoice.date || ""}
-                onChange={(e) => patch({ date: e.target.value })}
+                onChange={(e) => {
+                  const date = e.target.value;
+                  patch({
+                    date,
+                    dueDate: invoice.dueDate || addDaysToIsoDate(date, 15),
+                    invoiceDuration: invoice.invoiceDuration || invoiceDurationLabel(date),
+                  });
+                }}
+              />
+            </label>
+            <label>
+              Due date
+              <input
+                type="date"
+                value={invoice.dueDate || ""}
+                onChange={(e) => patch({ dueDate: e.target.value })}
+              />
+            </label>
+            <label>
+              Place of supply
+              <input
+                value={invoice.placeOfSupply || ""}
+                onChange={(e) => patch({ placeOfSupply: e.target.value })}
+                placeholder="Delhi (07)"
+              />
+            </label>
+            <label>
+              Account manager
+              <input
+                value={invoice.accountManager || ""}
+                onChange={(e) => patch({ accountManager: e.target.value })}
+                placeholder="Admin name"
+              />
+            </label>
+            <label>
+              Invoice duration
+              <input
+                value={invoice.invoiceDuration || ""}
+                onChange={(e) => patch({ invoiceDuration: e.target.value })}
+                placeholder="Oct-26"
               />
             </label>
             <label>
@@ -267,31 +378,65 @@ export default function InvoiceForm({ value, customers, onChange, isNew = false 
                 value={invoice.gstApplicable ? "yes" : "no"}
                 onChange={(e) => {
                   const gstApplicable = e.target.value === "yes";
+                  const pct = invoice.gstPercent || 18;
+                  const breakdown = resolveGstBreakdown({
+                    subTotal: 100,
+                    gstApplicable,
+                    gstPercent: pct,
+                    buyerStateCode: invoice.billTo.stateCode,
+                    buyerGstin: invoice.billTo.gstin,
+                    placeOfSupply: invoice.placeOfSupply,
+                    sellerStateCode: COMPANY_PROFILE.stateCode,
+                  });
                   patch({
                     gstApplicable,
-                    gstNote: gstApplicable ? `${invoice.gstPercent || 18}%` : "Not Applicable",
-                    gstPercent: gstApplicable ? invoice.gstPercent || 18 : 0,
+                    gstPercent: gstApplicable ? pct : 0,
+                    gstNote: !gstApplicable
+                      ? "Not Applicable"
+                      : breakdown.mode === "igst"
+                        ? `IGST${pct} (${pct}%)`
+                        : `CGST${pct / 2} (${pct / 2}%) + SGST${pct / 2} (${pct / 2}%)`,
                   });
                 }}
               >
                 <option value="no">No</option>
                 <option value="yes">Yes</option>
               </select>
+              <small style={{ color: "#98a1af", fontWeight: 500 }}>
+                Same state → CGST+SGST. Different state → IGST. Seller:{" "}
+                {COMPANY_PROFILE.stateName} ({COMPANY_PROFILE.stateCode}).
+              </small>
             </label>
             {invoice.gstApplicable ? (
               <label>
-                GST %
+                GST % (total)
                 <input
                   type="number"
                   min="0"
                   value={invoice.gstPercent}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const pct = Number(e.target.value || 0);
+                    const breakdown = resolveGstBreakdown({
+                      subTotal: 100,
+                      gstApplicable: true,
+                      gstPercent: pct,
+                      buyerStateCode: invoice.billTo.stateCode,
+                      buyerGstin: invoice.billTo.gstin,
+                      placeOfSupply: invoice.placeOfSupply,
+                      sellerStateCode: COMPANY_PROFILE.stateCode,
+                    });
                     patch({
-                      gstPercent: Number(e.target.value || 0),
-                      gstNote: `${e.target.value || 0}%`,
-                    })
-                  }
+                      gstPercent: pct,
+                      gstNote:
+                        breakdown.mode === "igst"
+                          ? `IGST${pct} (${pct}%)`
+                          : `CGST${pct / 2} (${pct / 2}%) + SGST${pct / 2} (${pct / 2}%)`,
+                    });
+                  }}
                 />
+                <small style={{ color: "#98a1af", fontWeight: 500 }}>
+                  Same state: CGST+SGST · Other state: IGST
+                </small>
               </label>
             ) : (
               <label>
@@ -390,7 +535,7 @@ export default function InvoiceForm({ value, customers, onChange, isNew = false 
           <div className="invoice-line-list">
             {invoice.lineItems.map((item) => (
               <div key={item.id} className="invoice-line-row">
-                <div className="invoice-line-grid">
+                <div className="invoice-line-grid invoice-line-grid-hsn">
                   <label>
                     Description
                     <input
@@ -398,6 +543,14 @@ export default function InvoiceForm({ value, customers, onChange, isNew = false 
                       value={item.description}
                       onChange={(e) => updateLine(item.id, "description", e.target.value)}
                       placeholder="Service / item description"
+                    />
+                  </label>
+                  <label>
+                    HSN/SAC
+                    <input
+                      value={item.hsnSac || ""}
+                      onChange={(e) => updateLine(item.id, "hsnSac", e.target.value)}
+                      placeholder="e.g. 998412"
                     />
                   </label>
                   <label>
@@ -543,7 +696,7 @@ export default function InvoiceForm({ value, customers, onChange, isNew = false 
           />
         </div>
         <div className="invoice-editor-preview-frame">
-          <InvoiceTemplate invoice={invoice} />
+          <InvoiceTemplate invoice={invoice} companySettings={companySettings} />
         </div>
       </div>
     </div>

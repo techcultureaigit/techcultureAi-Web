@@ -1,34 +1,54 @@
 "use client";
 
-import { COMPANY_PROFILE } from "@/lib/companyDefaults";
+import {
+  COMPANY_PROFILE,
+  resolveCompanyProfile,
+} from "@/lib/companyDefaults";
 import type { InvoiceDocument } from "@/lib/invoiceTypes";
 import {
   amountInWords,
   calcGrandTotal,
-  calcGstAmount,
   calcSubTotal,
   commissionPartnerAmount,
   commissionUserAmount,
   formatInr,
   formatInvoiceDate,
   lineAmount,
+  resolveGstBreakdown,
 } from "@/lib/invoiceUtils";
 import "./InvoiceTemplate.css";
 
 type Props = {
   invoice: InvoiceDocument;
+  companySettings?: {
+    businessAddress?: string;
+    businessCin?: string;
+    businessLegalName?: string;
+  } | null;
 };
 
-export default function InvoiceTemplate({ invoice }: Props) {
-  const company = COMPANY_PROFILE;
+export default function InvoiceTemplate({ invoice, companySettings }: Props) {
+  const company = resolveCompanyProfile(companySettings);
   const subTotal = calcSubTotal(invoice.lineItems || []);
-  const gstAmount = calcGstAmount(subTotal, invoice.gstApplicable, invoice.gstPercent);
+  const billTo = invoice.billTo || { name: invoice.name, address: "" };
+  const gst = resolveGstBreakdown({
+    subTotal,
+    gstApplicable: invoice.gstApplicable,
+    gstPercent: invoice.gstPercent,
+    buyerStateCode: billTo.stateCode,
+    buyerGstin: billTo.gstin,
+    placeOfSupply: invoice.placeOfSupply,
+    sellerStateCode: company.stateCode,
+  });
   const grandTotal = calcGrandTotal(
     invoice.lineItems || [],
     invoice.gstApplicable,
     invoice.gstPercent,
   );
-  const billTo = invoice.billTo || { name: invoice.name, address: "" };
+  const invoiceNo =
+    !invoice.invoiceNo || invoice.invoiceNo === "Auto"
+      ? "Auto-generated"
+      : invoice.invoiceNo;
 
   return (
     <div className="tc-invoice">
@@ -40,44 +60,58 @@ export default function InvoiceTemplate({ invoice }: Props) {
             alt="TechCulture AI"
           />
           <small>{company.legalName}</small>
+          <div className="tc-invoice-company-under-name">
+            <p>CIN: {company.cin}</p>
+            <p>{company.address}</p>
+          </div>
         </div>
         <div className="tc-invoice-meta">
           <h1>INVOICE</h1>
+        </div>
+      </div>
+
+      <div className="tc-invoice-meta-grid">
+        <div className="tc-invoice-meta-col">
+          <p>
+            Invoice No.: <strong>{invoiceNo}</strong>
+          </p>
           <p>
             Invoice Date: <strong>{formatInvoiceDate(invoice.date)}</strong>
           </p>
           <p>
-            Invoice No:{" "}
-            <strong>
-              {!invoice.invoiceNo || invoice.invoiceNo === "Auto"
-                ? "Auto-generated"
-                : invoice.invoiceNo}
-            </strong>
+            Due Date: <strong>{formatInvoiceDate(invoice.dueDate)}</strong>
+          </p>
+        </div>
+        <div className="tc-invoice-meta-col">
+          <p>
+            Place of Supply:{" "}
+            <strong>{invoice.placeOfSupply || "Delhi (07)"}</strong>
+          </p>
+          <p>
+            Account Manager: <strong>{invoice.accountManager || "—"}</strong>
+          </p>
+          <p>
+            Invoice Duration: <strong>{invoice.invoiceDuration || "—"}</strong>
           </p>
         </div>
       </div>
 
-      <div className="tc-invoice-parties">
-        <div className="tc-invoice-party">
-          <h3>BILL FROM</h3>
-          <b>{company.legalName}</b>
-          <p>CIN: {company.cin}</p>
-          <p>{company.address}</p>
-        </div>
+      <div className="tc-invoice-parties tc-invoice-parties-full">
         <div className="tc-invoice-party">
           <h3>BILL TO</h3>
-          <b>{billTo.name || "—"}</b>
-          {billTo.address ? <p>{billTo.address}</p> : null}
-          {billTo.gstin ? <p>GST number: {billTo.gstin}</p> : null}
-          {billTo.stateName ? (
-            <p>
-              State Name: {billTo.stateName}
-              {billTo.stateCode ? `, Code: ${billTo.stateCode}` : ""}
-            </p>
-          ) : null}
-          {billTo.cin ? <p>CIN: {billTo.cin}</p> : null}
-          {billTo.email ? <p>E-Mail: {billTo.email}</p> : null}
-          {billTo.phone ? <p>Phone: {billTo.phone}</p> : null}
+          <p className="tc-invoice-party-inline">
+            <strong>{billTo.name || "—"}</strong>
+            {billTo.address
+              ? ` · ${String(billTo.address).replace(/\s*\n\s*/g, ", ")}`
+              : ""}
+            {billTo.gstin ? ` · GST number: ${billTo.gstin}` : ""}
+            {billTo.stateName
+              ? ` · State Name: ${billTo.stateName}${billTo.stateCode ? `, Code: ${billTo.stateCode}` : ""}`
+              : ""}
+            {billTo.cin ? ` · CIN: ${billTo.cin}` : ""}
+            {billTo.email ? ` · E-Mail: ${billTo.email}` : ""}
+            {billTo.phone ? ` · Phone: ${billTo.phone}` : ""}
+          </p>
         </div>
       </div>
 
@@ -85,15 +119,18 @@ export default function InvoiceTemplate({ invoice }: Props) {
         <table className="tc-invoice-table">
           <thead>
             <tr>
-              <th style={{ width: 48 }}>Sl</th>
+              <th style={{ width: 42 }}>Sl</th>
               <th>Description</th>
-              <th className="center" style={{ width: 70 }}>
+              <th className="center" style={{ width: 88 }}>
+                HSN/SAC
+              </th>
+              <th className="center" style={{ width: 56 }}>
                 Qty
               </th>
-              <th className="num" style={{ width: 110 }}>
+              <th className="num" style={{ width: 96 }}>
                 Rate (INR)
               </th>
-              <th className="num" style={{ width: 120 }}>
+              <th className="num" style={{ width: 110 }}>
                 Amount (INR)
               </th>
             </tr>
@@ -103,6 +140,7 @@ export default function InvoiceTemplate({ invoice }: Props) {
               <tr key={item.id}>
                 <td className="center">{index + 1}</td>
                 <td>{item.description || "—"}</td>
+                <td className="center">{item.hsnSac || "—"}</td>
                 <td className="center">{item.qty || 0}</td>
                 <td className="num">{formatInr(item.rate)}</td>
                 <td className="num">{formatInr(lineAmount(item))}</td>
@@ -115,17 +153,39 @@ export default function InvoiceTemplate({ invoice }: Props) {
       <div className="tc-invoice-summary">
         <div className="tc-invoice-summary-card">
           <div className="tc-invoice-summary-row">
-            <span>Sub Total</span>
+            <span>Taxable Amount</span>
             <strong>{formatInr(subTotal)}</strong>
           </div>
-          <div className="tc-invoice-summary-row">
-            <span>GST</span>
-            <strong>
-              {invoice.gstApplicable ? formatInr(gstAmount) : invoice.gstNote || "Not Applicable"}
-            </strong>
-          </div>
+          {gst.mode === "cgst_sgst" ? (
+            <>
+              <div className="tc-invoice-summary-row">
+                <span>
+                  CGST{gst.halfPercent} ({gst.halfPercent}%)
+                </span>
+                <strong>{formatInr(gst.cgst)}</strong>
+              </div>
+              <div className="tc-invoice-summary-row">
+                <span>
+                  SGST{gst.halfPercent} ({gst.halfPercent}%)
+                </span>
+                <strong>{formatInr(gst.sgst)}</strong>
+              </div>
+            </>
+          ) : gst.mode === "igst" ? (
+            <div className="tc-invoice-summary-row">
+              <span>
+                IGST{gst.gstPercent} ({gst.gstPercent}%)
+              </span>
+              <strong>{formatInr(gst.igst)}</strong>
+            </div>
+          ) : (
+            <div className="tc-invoice-summary-row">
+              <span>GST</span>
+              <strong>{invoice.gstNote || "Not Applicable"}</strong>
+            </div>
+          )}
           <div className="tc-invoice-summary-row grand">
-            <span>Grand Total</span>
+            <span>Total</span>
             <strong>{formatInr(grandTotal)}</strong>
           </div>
         </div>
@@ -186,12 +246,16 @@ export default function InvoiceTemplate({ invoice }: Props) {
 
       <div className="tc-invoice-sign">
         <div className="tc-invoice-sign-block">
+          <p className="tc-invoice-sign-for">
+            For TECHCULTURE TECHNOLOGIES PRIVATE LIMITED
+          </p>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            className="tc-invoice-signatory-img"
-            src="/authorised-signatory.png"
-            alt="For TECHCULTURE TECHNOLOGIES PRIVATE LIMITED — Authorised Signatory"
+            className="tc-invoice-signature-img"
+            src="/SIGNETURE.png"
+            alt="Authorised signature"
           />
+          <p className="tc-invoice-sign-title">Authorised Signatory</p>
           <small>{formatInvoiceDate(invoice.date)}</small>
         </div>
       </div>

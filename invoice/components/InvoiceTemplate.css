@@ -44,10 +44,22 @@
 
 .tc-invoice-brand small {
   display: block;
-  max-width: 280px;
+  max-width: 320px;
   font-size: 10px;
   line-height: 1.4;
   color: var(--inv-muted);
+}
+
+.tc-invoice-company-under-name {
+  max-width: 360px;
+  margin-top: 2px;
+}
+
+.tc-invoice-company-under-name p {
+  margin: 0 0 2px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: #364152;
 }
 
 .tc-invoice-meta {
@@ -72,11 +84,40 @@
   color: var(--inv-ink);
 }
 
+.tc-invoice-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 24px;
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--inv-line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.tc-invoice-meta-col p {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--inv-muted);
+}
+
+.tc-invoice-meta-col p:last-child {
+  margin-bottom: 0;
+}
+
+.tc-invoice-meta-col strong {
+  color: var(--inv-ink);
+}
+
 .tc-invoice-parties {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
   margin-bottom: 20px;
+}
+
+.tc-invoice-parties-full {
+  grid-template-columns: 1fr;
 }
 
 .tc-invoice-party h3 {
@@ -97,6 +138,19 @@
   font-size: 11px;
   line-height: 1.55;
   color: #364152;
+}
+
+.tc-invoice-party-inline {
+  margin: 0 !important;
+  font-size: 12px !important;
+  line-height: 1.6 !important;
+  color: #364152;
+  white-space: normal;
+}
+
+.tc-invoice-party-inline strong {
+  color: var(--inv-ink);
+  font-weight: 700;
 }
 
 .tc-invoice-table-wrap {
@@ -219,23 +273,41 @@
 
 .tc-invoice-sign {
   display: flex;
-  justify-content: flex-start;
-  text-align: left;
-  margin-top: 8px;
+  justify-content: flex-end;
+  text-align: right;
+  margin-top: 18px;
   width: 100%;
 }
 
 .tc-invoice-sign-block {
-  width: 100%;
+  width: min(280px, 100%);
 }
 
-.tc-invoice-signatory-img {
+.tc-invoice-sign-for {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.35;
+}
+
+.tc-invoice-signature-img {
   display: block;
-  width: 100%;
-  max-width: 100%;
-  height: auto;
+  margin: 0 0 6px auto;
+  width: auto;
+  max-width: 220px;
+  height: 64px;
   object-fit: contain;
-  object-position: left top;
+  object-position: right center;
+}
+
+.tc-invoice-sign-title {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid #cfd8e3;
+  font-size: 12px;
+  font-weight: 700;
+  color: #111827;
 }
 
 .tc-invoice-sign small {

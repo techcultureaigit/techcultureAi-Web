@@ -1,9 +1,14 @@
+import { COMPANY_PROFILE } from "@/lib/companyDefaults";
+
 export type InvoiceMailSettings = {
   id: "default";
   autoEmailEnabled: boolean;
   reminderIntervalDays: number;
   overdueAfterDays: number;
   businessName: string;
+  businessAddress: string;
+  businessCin: string;
+  businessLegalName: string;
   smtpHost: string;
   smtpPort: number;
   smtpUser: string;
@@ -19,6 +24,9 @@ export const DEFAULT_INVOICE_MAIL_SETTINGS: InvoiceMailSettings = {
   reminderIntervalDays: 2,
   overdueAfterDays: 5,
   businessName: "TechCulture Technologies",
+  businessAddress: COMPANY_PROFILE.address,
+  businessCin: COMPANY_PROFILE.cin,
+  businessLegalName: COMPANY_PROFILE.legalName,
   smtpHost: "smtp.gmail.com",
   smtpPort: 587,
   smtpUser: "",
@@ -55,6 +63,14 @@ export function normalizeInvoiceMailSettings(
     businessName:
       String(input?.businessName || "").trim() ||
       DEFAULT_INVOICE_MAIL_SETTINGS.businessName,
+    businessAddress:
+      String(input?.businessAddress || "").trim() ||
+      DEFAULT_INVOICE_MAIL_SETTINGS.businessAddress,
+    businessCin:
+      String(input?.businessCin || "").trim() || DEFAULT_INVOICE_MAIL_SETTINGS.businessCin,
+    businessLegalName:
+      String(input?.businessLegalName || "").trim() ||
+      DEFAULT_INVOICE_MAIL_SETTINGS.businessLegalName,
     smtpHost:
       String(input?.smtpHost || "").trim() || DEFAULT_INVOICE_MAIL_SETTINGS.smtpHost,
     smtpPort: Number(input?.smtpPort) || DEFAULT_INVOICE_MAIL_SETTINGS.smtpPort,

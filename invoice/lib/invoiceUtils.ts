@@ -11,7 +11,115 @@ export function uid(prefix = "id") {
 }
 
 export function emptyLineItem(): InvoiceLineItem {
-  return { id: uid("line"), description: "", qty: 1, rate: 0 };
+  return { id: uid("line"), description: "", qty: 1, rate: 0, hsnSac: "" };
+}
+
+export function addDaysToIsoDate(dateStr: string | undefined, days: number) {
+  const base = dateStr ? new Date(dateStr) : new Date();
+  if (Number.isNaN(base.getTime())) return "";
+  base.setDate(base.getDate() + Number(days || 0));
+  return base.toISOString().slice(0, 10);
+}
+
+export function invoiceDurationLabel(dateStr?: string) {
+  const date = dateStr ? new Date(dateStr) : new Date();
+  if (Number.isNaN(date.getTime())) return "";
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${months[date.getMonth()]}-${String(date.getFullYear()).slice(-2)}`;
+}
+
+export type GstBreakdown = {
+  mode: "none" | "cgst_sgst" | "igst";
+  gstPercent: number;
+  halfPercent: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  totalGst: number;
+};
+
+function normalizeStateCode(raw?: string | null) {
+  const text = String(raw || "").trim();
+  if (!text) return "";
+  const fromParens = text.match(/\((\d{1,2})\)/);
+  if (fromParens) return fromParens[1].padStart(2, "0");
+  if (/^\d{1,2}$/.test(text)) return text.padStart(2, "0");
+  // GSTIN starts with 2-digit state code
+  if (/^\d{2}[A-Z]/.test(text.toUpperCase())) return text.slice(0, 2);
+  return "";
+}
+
+/**
+ * Same-state buyer/seller → CGST + SGST.
+ * Different states → IGST.
+ * Seller defaults to company Delhi (07).
+ */
+export function resolveGstBreakdown(input: {
+  subTotal: number;
+  gstApplicable: boolean;
+  gstPercent: number;
+  buyerStateCode?: string | null;
+  buyerGstin?: string | null;
+  placeOfSupply?: string | null;
+  sellerStateCode?: string | null;
+}): GstBreakdown {
+  const gstPercent = Number(input.gstPercent || 0);
+  const empty: GstBreakdown = {
+    mode: "none",
+    gstPercent,
+    halfPercent: 0,
+    cgst: 0,
+    sgst: 0,
+    igst: 0,
+    totalGst: 0,
+  };
+  if (!input.gstApplicable || gstPercent <= 0) return empty;
+
+  const sellerCode = normalizeStateCode(
+    input.sellerStateCode || COMPANY_PROFILE.stateCode || "07",
+  );
+  const buyerCode =
+    normalizeStateCode(input.buyerStateCode) ||
+    normalizeStateCode(input.placeOfSupply) ||
+    normalizeStateCode(input.buyerGstin);
+
+  const totalGst = calcGstAmount(input.subTotal, true, gstPercent);
+  const sameState = Boolean(sellerCode && buyerCode && sellerCode === buyerCode);
+
+  // If buyer state unknown, default to CGST+SGST (seller Delhi + common local billing)
+  if (!buyerCode || sameState) {
+    const halfPercent = gstPercent / 2;
+    const half = calcGstAmount(input.subTotal, true, halfPercent);
+    return {
+      mode: "cgst_sgst",
+      gstPercent,
+      halfPercent,
+      cgst: half,
+      sgst: half,
+      igst: 0,
+      totalGst,
+    };
+  }
+
+  return {
+    mode: "igst",
+    gstPercent,
+    halfPercent: 0,
+    cgst: 0,
+    sgst: 0,
+    igst: totalGst,
+    totalGst,
+  };
+}
+
+/** @deprecated Prefer resolveGstBreakdown */
+export function calcCgstSgst(
+  subTotal: number,
+  gstApplicable: boolean,
+  gstPercent: number,
+) {
+  const b = resolveGstBreakdown({ subTotal, gstApplicable, gstPercent });
+  return { halfPercent: b.halfPercent, cgst: b.cgst, sgst: b.sgst };
 }
 
 export function emptyCommissionRow(): CommissionRow {
@@ -167,6 +275,10 @@ export function createBlankInvoice(existing: Array<{ invoiceNo?: string; id?: st
     amount: 0,
     status: "Pending",
     date,
+    dueDate: addDaysToIsoDate(date, 15),
+    placeOfSupply: "Delhi (07)",
+    accountManager: "",
+    invoiceDuration: invoiceDurationLabel(date),
     category: "",
     description: "",
     billTo: emptyParty(),
@@ -196,6 +308,7 @@ export function normalizeInvoice(input: Partial<InvoiceDocument> & { id: string 
           description: item.description || "",
           qty: Number(item.qty || 0),
           rate: Number(item.rate || 0),
+          hsnSac: item.hsnSac || "",
         }))
       : base.lineItems;
 
@@ -227,6 +340,14 @@ export function normalizeInvoice(input: Partial<InvoiceDocument> & { id: string 
     amount,
     status: input.status || "Pending",
     date: input.date || base.date,
+    dueDate: input.dueDate || addDaysToIsoDate(input.date || base.date, 15),
+    placeOfSupply:
+      input.placeOfSupply ||
+      (billTo.stateName
+        ? `${billTo.stateName}${billTo.stateCode ? ` (${billTo.stateCode})` : ""}`
+        : base.placeOfSupply),
+    accountManager: input.accountManager || "",
+    invoiceDuration: input.invoiceDuration || invoiceDurationLabel(input.date || base.date),
     billTo,
     lineItems,
     commissionRows,
@@ -244,6 +365,20 @@ export function normalizeInvoice(input: Partial<InvoiceDocument> & { id: string 
   };
 }
 
-export function companyFromDefaults() {
-  return COMPANY_PROFILE;
+export function companyFromDefaults(
+  settings?: {
+    businessAddress?: string;
+    businessCin?: string;
+    businessLegalName?: string;
+  } | null,
+) {
+  const address = String(settings?.businessAddress || "").trim();
+  const legalName = String(settings?.businessLegalName || "").trim();
+  const cin = String(settings?.businessCin || "").trim();
+  return {
+    ...COMPANY_PROFILE,
+    address: address || COMPANY_PROFILE.address,
+    legalName: legalName || COMPANY_PROFILE.legalName,
+    cin: cin || COMPANY_PROFILE.cin,
+  };
 }

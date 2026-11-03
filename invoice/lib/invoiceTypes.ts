@@ -3,6 +3,7 @@ export type InvoiceLineItem = {
   description: string;
   qty: number;
   rate: number;
+  hsnSac?: string;
 };
 
 export type CommissionRow = {
@@ -41,6 +42,10 @@ export type InvoiceDocument = {
   gstApplicable: boolean;
   gstPercent: number;
   gstNote: string;
+  dueDate?: string;
+  placeOfSupply?: string;
+  accountManager?: string;
+  invoiceDuration?: string;
   notes?: string;
   firstSentAt?: string | null;
   lastReminderAt?: string | null;

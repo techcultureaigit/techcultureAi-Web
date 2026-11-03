@@ -1,4 +1,5 @@
 import { newId } from "./db.js";
+import { COMPANY_PROFILE } from "./companyDefaults.js";
 
 function str(v, fallback = "") {
   return v == null ? fallback : String(v).trim();
@@ -124,6 +125,7 @@ export function shapeLineItem(input = {}) {
     description: str(input.description),
     qty: num(input.qty, 1),
     rate: num(input.rate),
+    hsnSac: str(input.hsnSac),
   };
 }
 
@@ -184,6 +186,10 @@ export function shapeInvoice(input = {}, { keepId } = {}) {
     amount,
     status: str(input.status, "Pending"),
     date: str(input.date) || new Date().toISOString().slice(0, 10),
+    dueDate: str(input.dueDate),
+    placeOfSupply: str(input.placeOfSupply, "Delhi (07)"),
+    accountManager: str(input.accountManager),
+    invoiceDuration: str(input.invoiceDuration),
     category: str(input.category),
     description: str(input.description || input.notes),
     notes: str(input.notes || input.description),
@@ -213,6 +219,9 @@ export function defaultInvoiceSettings() {
     reminderIntervalDays: 2,
     overdueAfterDays: 5,
     businessName: "TechCulture Technologies",
+    businessAddress: COMPANY_PROFILE.address,
+    businessCin: COMPANY_PROFILE.cin,
+    businessLegalName: COMPANY_PROFILE.legalName,
     smtpHost: "smtp.gmail.com",
     smtpPort: 587,
     smtpUser: "",
@@ -238,6 +247,10 @@ export function shapeInvoiceSettings(input = {}, { keepPass } = {}) {
     reminderIntervalDays: reminder,
     overdueAfterDays: overdue,
     businessName: str(input.businessName, base.businessName),
+    businessAddress: str(input.businessAddress, base.businessAddress) || base.businessAddress,
+    businessCin: str(input.businessCin, base.businessCin) || base.businessCin,
+    businessLegalName:
+      str(input.businessLegalName, base.businessLegalName) || base.businessLegalName,
     smtpHost: str(input.smtpHost, base.smtpHost) || base.smtpHost,
     smtpPort: Math.max(1, num(input.smtpPort, base.smtpPort) || base.smtpPort),
     smtpUser: str(input.smtpUser).toLowerCase(),

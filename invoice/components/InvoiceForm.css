@@ -128,6 +128,10 @@
   align-items: end;
 }
 
+.invoice-line-grid-hsn {
+  grid-template-columns: minmax(0, 1.4fr) minmax(88px, 0.7fr) minmax(56px, 0.4fr) minmax(84px, 0.65fr) 38px;
+}
+
 .invoice-commission-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(64px, 0.55fr) minmax(84px, 0.7fr) minmax(64px, 0.55fr) 38px;

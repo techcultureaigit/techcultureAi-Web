@@ -11,6 +11,11 @@ type Props = {
   canSend?: boolean;
   sending?: boolean;
   markingPaid?: boolean;
+  companySettings?: {
+    businessAddress?: string;
+    businessCin?: string;
+    businessLegalName?: string;
+  } | null;
   onClose: () => void;
   onEdit: () => void;
   onSend: () => void;
@@ -31,6 +36,7 @@ export default function InvoiceDetailModal({
   canSend = false,
   sending = false,
   markingPaid = false,
+  companySettings = null,
   onClose,
   onEdit,
   onSend,
@@ -72,7 +78,7 @@ export default function InvoiceDetailModal({
           </button>
         </div>
 
-        <InvoiceTemplate invoice={doc} />
+        <InvoiceTemplate invoice={doc} companySettings={companySettings} />
 
         {doc.paymentProofUrl ? (
           <div className="invoice-detail-notes" style={{ marginTop: 14 }}>

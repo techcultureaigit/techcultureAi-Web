@@ -7,9 +7,15 @@ export type ToastInput = {
   durationMs?: number;
 };
 
+export type ConfirmDetail = {
+  label: string;
+  value: string;
+};
+
 export type ConfirmInput = {
   title?: string;
   message: string;
+  details?: ConfirmDetail[];
   confirmLabel?: string;
   cancelLabel?: string;
   tone?: NotifyTone;

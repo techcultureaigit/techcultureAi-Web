@@ -113,12 +113,14 @@ export function fakeInvoice(base: InvoiceDocument): InvoiceDocument {
     {
       ...emptyLineItem(),
       description: faker.commerce.productName() + " — Implementation",
+      hsnSac: "998412",
       qty: 1,
       rate: Number(faker.commerce.price({ min: 5000, max: 50000, dec: 0 })),
     },
     {
       ...emptyLineItem(),
       description: faker.commerce.productName() + " — Monthly fee",
+      hsnSac: "998413",
       qty: faker.number.int({ min: 1, max: 3 }),
       rate: Number(faker.commerce.price({ min: 500, max: 8000, dec: 0 })),
     },
@@ -149,6 +151,10 @@ export function fakeInvoice(base: InvoiceDocument): InvoiceDocument {
     phone,
   };
 
+  const date = faker.date.recent({ days: 40 }).toISOString().slice(0, 10);
+  const due = new Date(date);
+  due.setDate(due.getDate() + 15);
+
   return {
     ...base,
     name: company,
@@ -156,13 +162,23 @@ export function fakeInvoice(base: InvoiceDocument): InvoiceDocument {
     phone,
     amount,
     status: faker.helpers.arrayElement(["Pending", "Paid", "Overdue", "Draft"]),
-    date: faker.date.recent({ days: 40 }).toISOString().slice(0, 10),
+    date,
+    dueDate: due.toISOString().slice(0, 10),
+    placeOfSupply: `${stateName} (${stateCode})`,
+    accountManager: `${firstName} ${lastName}`,
+    invoiceDuration: (() => {
+      const d = new Date(date);
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return `${months[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
+    })(),
     billTo,
     lineItems,
     commissionRows,
     gstApplicable,
     gstPercent,
-    gstNote: gstApplicable ? `${gstPercent}%` : "Not Applicable",
+    gstNote: gstApplicable
+      ? `CGST${gstPercent / 2} (${gstPercent / 2}%) + SGST${gstPercent / 2} (${gstPercent / 2}%)`
+      : "Not Applicable",
     notes: faker.lorem.sentence(),
     description: faker.lorem.sentence(),
     kind: "invoice",

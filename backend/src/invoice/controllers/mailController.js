@@ -1,7 +1,8 @@
 import { invoiceCollection, toAppDoc } from "../db.js";
 import { shapeInvoice } from "../schemas.js";
-import { buildInvoiceDocumentHtml } from "../invoiceEmailHtml.js";
+import { buildInvoiceCoverEmail } from "../invoiceEmailHtml.js";
 import { createTransport, getInvoiceMailAttachments } from "../mailer.js";
+import { invoicePdfFilename, renderInvoicePdfBuffer } from "../invoicePdf.js";
 import { loadMailSettingsFromDb } from "./settingsController.js";
 
 function invoicesCol() {
@@ -12,6 +13,53 @@ async function findInvoice(id) {
   return invoicesCol().findOne({
     $or: [{ id }, { _id: id }, { invoiceNo: id }],
   });
+}
+
+function num(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function invoiceAmount(doc) {
+  if (doc.amount != null && doc.amount !== "") return num(doc.amount);
+  const items = Array.isArray(doc.lineItems) ? doc.lineItems : [];
+  const sub = items.reduce((s, i) => s + num(i.qty) * num(i.rate), 0);
+  if (!doc.gstApplicable) return sub;
+  return sub + (sub * num(doc.gstPercent)) / 100;
+}
+
+async function customerOutstanding(invoice, { includeCurrentIfMissing = true } = {}) {
+  const email = String(invoice.billTo?.email || invoice.email || "")
+    .trim()
+    .toLowerCase();
+  const name = String(invoice.billTo?.name || invoice.name || "").trim();
+  const or = [];
+  if (email) {
+    or.push({ "billTo.email": email }, { email });
+  }
+  if (name) {
+    or.push({ "billTo.name": name }, { name });
+  }
+  if (!or.length) {
+    return includeCurrentIfMissing ? invoiceAmount(invoice) : 0;
+  }
+
+  const docs = await invoicesCol()
+    .find({
+      $and: [
+        { $or: or },
+        {
+          status: { $in: ["Pending", "Overdue", "pending", "overdue"] },
+        },
+      ],
+    })
+    .toArray();
+
+  let total = docs.reduce((sum, doc) => sum + invoiceAmount(doc), 0);
+  if (includeCurrentIfMissing && total <= 0) {
+    total = invoiceAmount(invoice);
+  }
+  return total;
 }
 
 export async function sendInvoiceMail(req, res) {
@@ -67,14 +115,32 @@ export async function sendInvoiceMail(req, res) {
       });
     }
 
-    const email = buildInvoiceDocumentHtml(
-      { ...invoice, status: kind === "paid" ? "Paid" : invoice.status },
-      { kind },
-    );
     const mailSettings = await loadMailSettingsFromDb();
-    const { transporter, config } = createTransport(mailSettings);
-    const attachments = getInvoiceMailAttachments();
+    const dueDays = Number(mailSettings.overdueAfterDays || 15);
+    // Pending/Overdue list = total outstanding. After mark-paid, this invoice is Paid so remaining = balance due.
+    const outstanding = await customerOutstanding(invoice, {
+      includeCurrentIfMissing: kind !== "paid",
+    });
 
+    const email = buildInvoiceCoverEmail(invoice, {
+      kind,
+      extras: {
+        dueDays,
+        dueDate: invoice.dueDate || undefined,
+        outstanding,
+        balanceDue: outstanding,
+        paymentDate: new Date().toISOString().slice(0, 10),
+        settings: mailSettings,
+      },
+    });
+
+    const pdfBuffer = await renderInvoicePdfBuffer(invoice, { settings: mailSettings });
+    const attachments = getInvoiceMailAttachments({
+      filename: invoicePdfFilename(invoice),
+      content: pdfBuffer,
+    });
+
+    const { transporter, config } = createTransport(mailSettings);
     const info = await transporter.sendMail({
       from: `"${config.fromName}" <${config.fromEmail}>`,
       to,
@@ -110,7 +176,7 @@ export async function sendInvoiceMail(req, res) {
 
     return res.json({
       success: true,
-      message: `${label} to ${to}`,
+      message: `${label} to ${to} (PDF attached)`,
       messageId: info.messageId,
       sentAt,
       kind,
