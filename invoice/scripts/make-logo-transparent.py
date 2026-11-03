@@ -5,10 +5,9 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "public" / "techculture-logo.png"
+# Keep wordmark only here — square splash/app icons come from make-app-icons.py
 OUTS = [
     SRC,
-    ROOT / "public" / "icon.png",
-    ROOT / "app" / "icon.png",
 ]
 
 

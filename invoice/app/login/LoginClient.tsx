@@ -7,8 +7,8 @@ import "./login.css";
 
 export default function LoginClient() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@techculture.ai");
-  const [password, setPassword] = useState("Admin@123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
