@@ -1,0 +1,118 @@
+.profile-menu {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  z-index: 50;
+}
+
+.profile-trigger {
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #e8e9ff;
+  color: #5556a9;
+  font-size: 11px;
+  font-weight: 750;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.profile-trigger.open,
+.profile-trigger:focus-visible {
+  outline: 2px solid rgba(249, 115, 22, 0.35);
+  outline-offset: 2px;
+}
+
+.profile-popup {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 240px;
+  background: #fff;
+  border: 1px solid #e7ebf0;
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(23, 32, 51, 0.14);
+  padding: 10px;
+  z-index: 60;
+}
+
+.profile-popup-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 12px;
+  border-bottom: 1px solid #eef1f5;
+  margin-bottom: 6px;
+}
+
+.profile-popup-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #e8e9ff;
+  color: #5556a9;
+  font-size: 11px;
+  font-weight: 750;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.profile-popup-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.profile-popup-meta strong {
+  display: block;
+  font-size: 13px;
+  line-height: 1.3;
+  color: #243042;
+  font-weight: 700;
+}
+
+.profile-popup-meta span {
+  display: block;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #8490a2;
+  word-break: break-all;
+}
+
+.profile-popup-logout {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  color: #c34b3c;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  text-align: left;
+  line-height: 1;
+}
+
+.profile-popup-logout svg {
+  flex-shrink: 0;
+  display: block;
+}
+
+.profile-popup-logout:hover {
+  background: #fff5f3;
+}

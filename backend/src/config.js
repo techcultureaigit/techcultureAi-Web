@@ -19,7 +19,9 @@ export const config = {
   adminEmail: process.env.ADMIN_EMAIL || "admin@techculture.ai",
   adminPassword: process.env.ADMIN_PASSWORD || "Admin@123",
   adminName: process.env.ADMIN_NAME || "TechCulture Admin",
-  corsOrigin: process.env.CORS_ORIGIN || "http://localhost:5173,http://localhost:3000",
+  corsOrigin:
+    process.env.CORS_ORIGIN ||
+    "http://localhost:5173,http://localhost:3000,http://localhost:3001",
   mongoUri,
   mongoDbName: resolveMongoDbName(mongoUri),
 };

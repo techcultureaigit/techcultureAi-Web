@@ -12,6 +12,7 @@ import demoRoutes from "./routes/demos.js";
 import contactRoutes from "./routes/contacts.js";
 import faqRoutes from "./routes/faqs.js";
 import uploadRoutes, { serveUpload } from "./routes/uploads.js";
+import invoiceRoutes from "./invoice/routes/index.js";
 
 const app = express();
 
@@ -59,6 +60,9 @@ app.use("/api/contacts", contactRoutes);
 app.use("/api/faqs", faqRoutes);
 app.use("/api/uploads", uploadRoutes);
 
+// Invoice app API (separate module — does not alter backoffice / AI-user routes)
+app.use("/api/invoice", invoiceRoutes);
+
 app.use((err, _req, res, _next) => {
   console.error(err);
   res.status(500).json({ success: false, message: "Server error" });
@@ -75,6 +79,7 @@ async function start() {
     console.log(`   Contacts   : POST /api/contacts/public`);
     console.log(`   FAQs public: GET /api/faqs/public`);
     console.log(`   Uploads    : POST /api/uploads/image`);
+    console.log(`   Invoice API: /api/invoice/*`);
   });
 }
 
