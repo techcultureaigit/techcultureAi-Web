@@ -140,8 +140,9 @@ const emptyAddress = (): AddressFields => ({
   fax: "",
 });
 
+let contactSeq = 0;
 const emptyContact = (): ContactPerson => ({
-  id: `CP-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+  id: `CP-tmp-${++contactSeq}`,
   salutation: "Mr.",
   firstName: "",
   lastName: "",
@@ -184,7 +185,7 @@ export function createEmptyCustomer(id: string, date: string): CustomerRecord {
 }
 
 export function normalizeCustomer(input: Partial<CustomerRecord> & { id: string }): CustomerRecord {
-  const base = createEmptyCustomer(input.id, input.date || new Date().toISOString().slice(0, 10));
+  const base = createEmptyCustomer(input.id, input.date || "");
   return {
     ...base,
     ...input,

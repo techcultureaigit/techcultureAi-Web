@@ -60,8 +60,32 @@ export default function WorkspacePage({ section }: { section: Section }) {
   const [sendingId,setSendingId]=useState<string|null>(null);
   const [markingPaidId,setMarkingPaidId]=useState<string|null>(null);
   const [installPrompt,setInstallPrompt]=useState<any>(null);
-  const [form,setForm]=useState<RecordItem>({id:"",name:"",email:"",phone:"",amount:0,status:"Pending",date:today(),category:"",description:""});
-  const [invoiceForm,setInvoiceForm]=useState<InvoiceDocument>(createBlankInvoice());
+  const [form,setForm]=useState<RecordItem>({id:"",name:"",email:"",phone:"",amount:0,status:"Pending",date:"",category:"",description:""});
+  const [invoiceForm,setInvoiceForm]=useState<InvoiceDocument>(() => ({
+    id: "",
+    invoiceNo: "",
+    name: "",
+    email: "",
+    phone: "",
+    amount: 0,
+    status: "Pending",
+    date: "",
+    category: "",
+    description: "",
+    billTo: { name: "", address: "", gstin: "", stateName: "", stateCode: "", email: "", phone: "" },
+    lineItems: [{ id: "line-placeholder", description: "", qty: 1, rate: 0 }],
+    commissionRows: [],
+    gstApplicable: false,
+    gstPercent: 0,
+    gstNote: "Not Applicable",
+    notes: "",
+    firstSentAt: null,
+    lastReminderAt: null,
+    paidEmailSentAt: null,
+    paymentProofUrl: null,
+    paymentProofName: null,
+    kind: "invoice",
+  }));
   const [mailSettings,setMailSettings]=useState<InvoiceMailSettings>(DEFAULT_INVOICE_MAIL_SETTINGS);
   const [settingsSaving,setSettingsSaving]=useState(false);
 
@@ -641,7 +665,7 @@ export default function WorkspacePage({ section }: { section: Section }) {
               </label>
               <label>Amount (₹)<input type="number" min="0" required value={form.amount||0} onChange={e=>setForm({...form,amount:Number(e.target.value)})}/></label>
               <label>Status<select value={form.status||"Active"} onChange={e=>setForm({...form,status:e.target.value})}>{["Completed","Processing","Failed"].map(s=><option key={s}>{s}</option>)}</select></label>
-              <label>Date<input type="date" value={form.date||today()} onChange={e=>setForm({...form,date:e.target.value})}/></label>
+              <label>Date<input type="date" value={form.date||""} onChange={e=>setForm({...form,date:e.target.value})}/></label>
               <label>Category<input value={form.category||""} onChange={e=>setForm({...form,category:e.target.value})} placeholder="e.g. Software"/></label>
               <label className="full-field">Notes / description<textarea value={form.description||""} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Add a note (optional)"/></label>
             </div>
