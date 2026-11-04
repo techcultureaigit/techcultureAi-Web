@@ -211,13 +211,31 @@ export function shapeInvoice(input = {}, { keepId } = {}) {
   };
 }
 
+function normalizeIntervalUnit(raw, fallback = "days") {
+  const unit = String(raw || fallback || "days").toLowerCase();
+  if (unit === "minutes" || unit === "minute" || unit === "min") return "minutes";
+  if (unit === "hours" || unit === "hour" || unit === "hr") return "hours";
+  return "days";
+}
+
+function clampInterval(value, unit, fallback) {
+  const n = Math.max(1, Math.floor(num(value, fallback) || fallback || 1));
+  if (unit === "minutes") return Math.min(n, 24 * 60);
+  if (unit === "hours") return Math.min(n, 24 * 30);
+  return Math.min(n, 90);
+}
+
 export function defaultInvoiceSettings() {
   return {
     id: "default",
     _id: "default",
     autoEmailEnabled: true,
     reminderIntervalDays: 2,
+    reminderInterval: 2,
+    reminderIntervalUnit: "days",
     overdueAfterDays: 5,
+    overdueAfter: 5,
+    overdueAfterUnit: "days",
     businessName: "TechCulture Technologies",
     businessAddress: COMPANY_PROFILE.address,
     businessCin: COMPANY_PROFILE.cin,
@@ -233,8 +251,21 @@ export function defaultInvoiceSettings() {
 
 export function shapeInvoiceSettings(input = {}, { keepPass } = {}) {
   const base = defaultInvoiceSettings();
-  const reminder = Math.max(1, Math.min(30, num(input.reminderIntervalDays, base.reminderIntervalDays)));
-  const overdue = Math.max(1, Math.min(90, num(input.overdueAfterDays, base.overdueAfterDays)));
+  const reminderUnit = normalizeIntervalUnit(
+    input.reminderIntervalUnit,
+    base.reminderIntervalUnit,
+  );
+  const overdueUnit = normalizeIntervalUnit(input.overdueAfterUnit, base.overdueAfterUnit);
+  const reminder = clampInterval(
+    input.reminderInterval ?? input.reminderIntervalDays,
+    reminderUnit,
+    base.reminderInterval,
+  );
+  const overdue = clampInterval(
+    input.overdueAfter ?? input.overdueAfterDays,
+    overdueUnit,
+    base.overdueAfter,
+  );
   const incomingPass = str(input.smtpPass);
   const smtpPass =
     incomingPass ||
@@ -244,8 +275,12 @@ export function shapeInvoiceSettings(input = {}, { keepPass } = {}) {
     id: "default",
     _id: "default",
     autoEmailEnabled: bool(input.autoEmailEnabled, base.autoEmailEnabled),
-    reminderIntervalDays: reminder,
-    overdueAfterDays: overdue,
+    reminderInterval: reminder,
+    reminderIntervalUnit: reminderUnit,
+    reminderIntervalDays: reminderUnit === "days" ? reminder : base.reminderIntervalDays,
+    overdueAfter: overdue,
+    overdueAfterUnit: overdueUnit,
+    overdueAfterDays: overdueUnit === "days" ? overdue : base.overdueAfterDays,
     businessName: str(input.businessName, base.businessName),
     businessAddress: str(input.businessAddress, base.businessAddress) || base.businessAddress,
     businessCin: str(input.businessCin, base.businessCin) || base.businessCin,

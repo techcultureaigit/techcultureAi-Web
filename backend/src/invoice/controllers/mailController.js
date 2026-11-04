@@ -116,7 +116,15 @@ export async function sendInvoiceMail(req, res) {
     }
 
     const mailSettings = await loadMailSettingsFromDb();
-    const dueDays = Number(mailSettings.overdueAfterDays || 15);
+    const overdueUnit = String(mailSettings.overdueAfterUnit || "days").toLowerCase();
+    const overdueValue = Number(
+      mailSettings.overdueAfter ?? mailSettings.overdueAfterDays ?? 5,
+    );
+    let dueDays = Math.max(1, overdueValue || 5);
+    if (overdueUnit === "hours") dueDays = Math.max(1, Math.ceil(dueDays / 24));
+    else if (overdueUnit === "minutes" || overdueUnit === "min") {
+      dueDays = Math.max(1, Math.ceil(dueDays / (24 * 60)));
+    }
     // Pending/Overdue list = total outstanding. After mark-paid, this invoice is Paid so remaining = balance due.
     const outstanding = await customerOutstanding(invoice, {
       includeCurrentIfMissing: kind !== "paid",

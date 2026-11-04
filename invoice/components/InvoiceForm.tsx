@@ -3,11 +3,9 @@
 import CustomerSearchSelect, {
   type CustomerOption,
 } from "@/components/CustomerSearchSelect";
-import DevFillButton from "@/components/DevFillButton";
 import InvoiceTemplate from "@/components/InvoiceTemplate";
 import { AppIcon, Icons } from "@/components/icons";
 import { invoiceApi } from "@/lib/api";
-import { fakeInvoice } from "@/lib/devFaker";
 import type { InvoiceDocument } from "@/lib/invoiceTypes";
 import { gstStateFromNumber } from "@/lib/gstStates";
 import { getAuthUser } from "@/lib/auth";
@@ -28,6 +26,8 @@ type Props = {
   customers: CustomerOption[];
   onChange: (next: InvoiceDocument) => void;
   isNew?: boolean;
+  /** Days added to invoice date for default Due Date (from Settings → overdue after). */
+  defaultDueDays?: number;
   companySettings?: {
     businessAddress?: string;
     businessCin?: string;
@@ -61,15 +61,20 @@ export default function InvoiceForm({
   customers,
   onChange,
   isNew = false,
+  defaultDueDays = 5,
   companySettings = null,
 }: Props) {
-  const invoice = normalizeInvoice({
-    ...value,
-    accountManager: value.accountManager || getAuthUser()?.name || "",
-  });
+  const dueDays = Math.max(1, Number(defaultDueDays) || 5);
+  const invoice = normalizeInvoice(
+    {
+      ...value,
+      accountManager: value.accountManager || getAuthUser()?.name || "",
+    },
+    { dueDays },
+  );
 
   function patch(next: Partial<InvoiceDocument>) {
-    const merged = normalizeInvoice({ ...invoice, ...next, id: invoice.id });
+    const merged = normalizeInvoice({ ...invoice, ...next, id: invoice.id }, { dueDays });
     onChange(merged);
   }
 
@@ -276,13 +281,12 @@ export default function InvoiceForm({
                 value={isNew ? "Auto-generated on create" : invoice.invoiceNo}
                 readOnly
                 disabled
-                title="Invoice number is generated automatically"
+                title={
+                  isNew
+                    ? "Number is assigned automatically when you create the invoice."
+                    : "Invoice number cannot be changed."
+                }
               />
-              <small style={{ color: "#98a1af", fontWeight: 500 }}>
-                {isNew
-                  ? "Number is assigned automatically when you create the invoice."
-                  : "Invoice number cannot be changed."}
-              </small>
             </label>
             <label>
               Invoice date
@@ -291,12 +295,41 @@ export default function InvoiceForm({
                 value={invoice.date || ""}
                 onChange={(e) => {
                   const date = e.target.value;
+                  const currentDueDays = (() => {
+                    if (!invoice.date || !invoice.dueDate) return dueDays;
+                    const from = new Date(invoice.date).getTime();
+                    const to = new Date(invoice.dueDate).getTime();
+                    if (Number.isNaN(from) || Number.isNaN(to)) return dueDays;
+                    return Math.max(1, Math.round((to - from) / (24 * 60 * 60 * 1000)));
+                  })();
                   patch({
                     date,
-                    dueDate: invoice.dueDate || addDaysToIsoDate(date, 15),
+                    dueDate: addDaysToIsoDate(date, currentDueDays),
                     invoiceDuration: invoice.invoiceDuration || invoiceDurationLabel(date),
                   });
                 }}
+              />
+            </label>
+            <label>
+              Due in (days)
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={(() => {
+                  if (!invoice.date || !invoice.dueDate) return dueDays;
+                  const from = new Date(invoice.date).getTime();
+                  const to = new Date(invoice.dueDate).getTime();
+                  if (Number.isNaN(from) || Number.isNaN(to)) return dueDays;
+                  return Math.max(1, Math.round((to - from) / (24 * 60 * 60 * 1000)));
+                })()}
+                onChange={(e) => {
+                  const days = Math.max(1, Math.min(365, Number(e.target.value) || 1));
+                  patch({
+                    dueDate: addDaysToIsoDate(invoice.date, days),
+                  });
+                }}
+                title={`Default from Settings (${dueDays} days). Change per invoice if needed.`}
               />
             </label>
             <label>
@@ -336,14 +369,12 @@ export default function InvoiceForm({
               <select
                 value={invoice.status || "Pending"}
                 onChange={(e) => patch({ status: e.target.value })}
+                title="New invoices email as Pending. Paid sends one confirmation email."
               >
                 {["Pending", "Paid", "Overdue", "Draft"].map((status) => (
                   <option key={status}>{status}</option>
                 ))}
               </select>
-              <small style={{ color: "#98a1af", fontWeight: 500 }}>
-                New invoices email the customer as Pending. Paid sends a one-time confirmation email.
-              </small>
             </label>
             {(invoice.status || "").toLowerCase() === "paid" ? (
               <label className="full-field">
@@ -398,14 +429,11 @@ export default function InvoiceForm({
                         : `CGST${pct / 2} (${pct / 2}%) + SGST${pct / 2} (${pct / 2}%)`,
                   });
                 }}
+                title={`Same state → CGST+SGST. Different state → IGST. Seller: ${COMPANY_PROFILE.stateName} (${COMPANY_PROFILE.stateCode}).`}
               >
                 <option value="no">No</option>
                 <option value="yes">Yes</option>
               </select>
-              <small style={{ color: "#98a1af", fontWeight: 500 }}>
-                Same state → CGST+SGST. Different state → IGST. Seller:{" "}
-                {COMPANY_PROFILE.stateName} ({COMPANY_PROFILE.stateCode}).
-              </small>
             </label>
             {invoice.gstApplicable ? (
               <label>
@@ -433,10 +461,8 @@ export default function InvoiceForm({
                           : `CGST${pct / 2} (${pct / 2}%) + SGST${pct / 2} (${pct / 2}%)`,
                     });
                   }}
+                  title="Same state: CGST+SGST · Other state: IGST"
                 />
-                <small style={{ color: "#98a1af", fontWeight: 500 }}>
-                  Same state: CGST+SGST · Other state: IGST
-                </small>
               </label>
             ) : (
               <label>
@@ -473,9 +499,10 @@ export default function InvoiceForm({
                 placeholder="Customer legal name"
               />
             </label>
-            <label className="invoice-span-2">
+            <label className="invoice-span-4">
               Address
               <textarea
+                rows={2}
                 value={invoice.billTo.address}
                 onChange={(e) => updateBillTo("address", e.target.value)}
                 placeholder="Billing address"
@@ -675,9 +702,10 @@ export default function InvoiceForm({
         <div className="invoice-editor-card">
           <h3>Notes</h3>
           <div className="invoice-editor-grid">
-            <label className="invoice-span-2">
+            <label className="invoice-span-4">
               Additional notes
               <textarea
+                rows={2}
                 value={invoice.notes || ""}
                 onChange={(e) => patch({ notes: e.target.value, description: e.target.value })}
                 placeholder="Optional notes shown on invoice"
@@ -688,13 +716,6 @@ export default function InvoiceForm({
       </div>
 
       <div className="invoice-editor-preview">
-        <div className="invoice-editor-preview-label">
-          <span>LIVE PREVIEW</span>
-          <DevFillButton
-            label="Fill fake data"
-            onClick={() => onChange(fakeInvoice(invoice))}
-          />
-        </div>
         <div className="invoice-editor-preview-frame">
           <InvoiceTemplate invoice={invoice} companySettings={companySettings} />
         </div>

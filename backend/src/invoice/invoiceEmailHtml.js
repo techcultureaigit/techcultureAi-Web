@@ -247,11 +247,20 @@ function buildPaymentRequestCover(meta) {
 }
 
 function buildReminderCover(meta) {
+  const isOverdue = Number(meta.overdueDays) > 0;
   const detailRow = (label, value, valueColor = "#111827") => `
     <tr>
       <td style="padding:10px 0;font-size:13px;color:#6b7280;border-bottom:1px solid #f3e8d8">${esc(label)}</td>
       <td style="padding:10px 0;font-size:13px;font-weight:700;color:${valueColor};text-align:right;border-bottom:1px solid #f3e8d8">${value}</td>
     </tr>`;
+  const overdueBadge = isOverdue
+    ? `<div style="margin-top:12px;padding:6px 12px;border-radius:999px;background:#ffedd5;color:#9a3412;font-size:12px;font-weight:700;display:inline-block">
+          Overdue by ${esc(String(meta.overdueDays))} day${Number(meta.overdueDays) === 1 ? "" : "s"}
+        </div>`
+    : "";
+  const overdueDaysRow = isOverdue
+    ? detailRow("Overdue Days", esc(String(meta.overdueDays)), "#c2410c")
+    : "";
 
   return wrapEmail(`
     <div style="background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e5e7eb;box-shadow:0 8px 24px rgba(23,32,51,0.06)">
@@ -278,9 +287,7 @@ function buildReminderCover(meta) {
       <div style="margin:0 24px 20px;background:#fff7ed;border:1px solid #fdba74;border-radius:12px;padding:20px 18px;text-align:center">
         <div style="font-size:11px;letter-spacing:0.8px;font-weight:700;color:#9a3412;margin-bottom:8px">AMOUNT DUE</div>
         <div style="font-size:30px;font-weight:800;color:#c1121f;line-height:1.15">${esc(formatMoney(meta.grandTotal))}</div>
-        <div style="margin-top:12px;padding:6px 12px;border-radius:999px;background:#ffedd5;color:#9a3412;font-size:12px;font-weight:700;display:inline-block">
-          Overdue by ${esc(String(meta.overdueDays))} day${Number(meta.overdueDays) === 1 ? "" : "s"}
-        </div>
+        ${overdueBadge}
       </div>
 
       <div style="margin:0 24px 22px;background:#fffbeb;border:1px solid #f5e6c8;border-radius:12px;padding:8px 18px 4px">
@@ -288,7 +295,7 @@ function buildReminderCover(meta) {
           ${detailRow("Invoice No", esc(meta.invoiceNo))}
           ${detailRow("Invoice Date", esc(formatSlashDate(meta.invoiceDate)))}
           ${detailRow("Due Date", esc(formatSlashDate(meta.dueDate)), "#b45309")}
-          ${detailRow("Overdue Days", esc(String(meta.overdueDays)), "#c2410c")}
+          ${overdueDaysRow}
           ${detailRow("Amount", esc(formatMoney(meta.grandTotal)), "#c1121f")}
           <tr>
             <td style="padding:12px 0 8px;font-size:13px;font-weight:700;color:#374151">Total Outstanding Balance</td>
@@ -370,9 +377,13 @@ export function buildInvoiceCoverEmail(invoice, { kind = "payment_request", extr
       `Payment Date: ${formatSlashDate(meta.paymentDate)}`,
       `Balance Due: ${formatMoney(meta.balanceDue)}`,
     ].join("\n");
-  } else if (kind === "reminder") {
+  } else {
+    // First create (payment_request) and Send button (reminder) share the same cover UI
     html = buildReminderCover(meta);
-    subject = `Payment reminder — Invoice ${meta.invoiceNo}`;
+    subject =
+      kind === "reminder"
+        ? `Payment reminder — Invoice ${meta.invoiceNo}`
+        : `Invoice ${meta.invoiceNo} from ${meta.company.brandName}`;
     text = [
       `Dear ${meta.name},`,
       "",
@@ -380,25 +391,11 @@ export function buildInvoiceCoverEmail(invoice, { kind = "payment_request", extr
       `Invoice No: ${meta.invoiceNo}`,
       `Invoice Date: ${formatSlashDate(meta.invoiceDate)}`,
       `Due Date: ${formatSlashDate(meta.dueDate)}`,
-      `Overdue Days: ${meta.overdueDays}`,
+      ...(Number(meta.overdueDays) > 0 ? [`Overdue Days: ${meta.overdueDays}`] : []),
       `Amount: ${formatMoney(meta.grandTotal)}`,
       `Total Outstanding Balance: ${formatMoney(meta.outstanding)}`,
       "",
       "Invoice PDF is attached.",
-    ].join("\n");
-  } else {
-    html = buildPaymentRequestCover(meta);
-    subject = `Invoice ${meta.invoiceNo} from ${meta.company.brandName}`;
-    text = [
-      `Dear ${meta.name},`,
-      "",
-      `Greetings from ${meta.company.brandName} !!`,
-      "Please find the attached soft copy of the invoice.",
-      `Invoice Amount: ${formatMoney(meta.grandTotal)}`,
-      `Invoice No: ${meta.invoiceNo}`,
-      `Invoice Date: ${formatSlashDate(meta.invoiceDate)}`,
-      `Due Date: ${formatSlashDate(meta.dueDate)}`,
-      `Total Outstanding: ${formatMoney(meta.outstanding)}`,
     ].join("\n");
   }
 

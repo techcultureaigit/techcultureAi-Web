@@ -17,13 +17,17 @@ import { fakeInvoice, fakePayment } from "@/lib/devFaker";
 import { sendInvoiceMail } from "@/lib/invoiceMail";
 import {
   DEFAULT_INVOICE_MAIL_SETTINGS,
+  dueDaysFromSettings,
+  formatIntervalLabel,
+  intervalToMs,
   normalizeInvoiceMailSettings,
+  type IntervalUnit,
   type InvoiceMailSettings,
 } from "@/lib/invoiceSettings";
 import { confirmDialog, toast } from "@/lib/notify";
 import type { InvoiceDocument } from "@/lib/invoiceTypes";
 import { fetchWorkspaceFromApi } from "@/lib/invoiceStorage";
-import { createBlankInvoice, normalizeInvoice } from "@/lib/invoiceUtils";
+import { createBlankInvoice, normalizeInvoice, withAutoOverdueStatus } from "@/lib/invoiceUtils";
 import { routeForSection, type Section } from "@/lib/routes";
 
 type RecordItem = {
@@ -46,6 +50,24 @@ const emptyData: Record<string, RecordItem[]> = {
 };
 const money=(n:number)=>new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0}).format(n||0);
 const today=()=>new Date().toISOString().slice(0,10);
+const MONTH_SHORT=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function formatChartAxis(n:number){
+  if(n>=10000000) return `₹${(n/10000000).toFixed(n%10000000===0?0:1)}Cr`;
+  if(n>=100000) return `₹${(n/100000).toFixed(n%100000===0?0:1)}L`;
+  if(n>=1000) return `₹${Math.round(n/1000)}k`;
+  return `₹${Math.round(n)}`;
+}
+
+function niceChartMax(n:number){
+  if(n<=0) return 10000;
+  const pad=n*1.15;
+  const mag=Math.pow(10,Math.floor(Math.log10(pad)));
+  const step=mag/2;
+  return Math.ceil(pad/step)*step;
+}
+
+type RevenuePeriod="7m"|"30d"|"year";
 
 export default function WorkspacePage({ section }: { section: Section }) {
   const router = useRouter();
@@ -92,6 +114,7 @@ export default function WorkspacePage({ section }: { section: Section }) {
   }));
   const [mailSettings,setMailSettings]=useState<InvoiceMailSettings>(DEFAULT_INVOICE_MAIL_SETTINGS);
   const [settingsSaving,setSettingsSaving]=useState(false);
+  const [revenuePeriod,setRevenuePeriod]=useState<RevenuePeriod>("7m");
 
   function goTo(next: Section, query?: string) {
     router.push(routeForSection(next, query));
@@ -157,21 +180,37 @@ export default function WorkspacePage({ section }: { section: Section }) {
     })();
     const handler=(e:Event)=>{e.preventDefault();setInstallPrompt(e)};
     window.addEventListener("beforeinstallprompt",handler);
-    const timer = window.setInterval(() => {
-      void runInvoiceAutomation();
-    }, 60 * 60 * 1000);
     return ()=>{
       cancelled = true;
-      window.clearInterval(timer);
       window.removeEventListener("beforeinstallprompt",handler);
     };
   },[]);
+
+  useEffect(() => {
+    // Always poll so due-date → Overdue status updates even if auto-email is Off
+    const reminderMs = mailSettings.autoEmailEnabled
+      ? intervalToMs(mailSettings.reminderInterval, mailSettings.reminderIntervalUnit)
+      : 60 * 60 * 1000;
+    const pollMs = Math.max(30_000, Math.min(60 * 60 * 1000, Math.floor(reminderMs / 2)));
+    const timer = window.setInterval(() => {
+      void runInvoiceAutomation();
+    }, pollMs);
+    return () => window.clearInterval(timer);
+  }, [
+    mailSettings.autoEmailEnabled,
+    mailSettings.reminderInterval,
+    mailSettings.reminderIntervalUnit,
+  ]);
   useEffect(()=>{
     const q = searchParams.get("q") || "";
     setSearch(q);
   }, [searchParams, section]);
   useEffect(()=>{try{localStorage.setItem("tc-invoice-data",JSON.stringify(data))}catch{}},[data]);
-  const records=data[section]||[];
+  const records=useMemo(()=>{
+    const list=data[section]||[];
+    if(section!=="Invoices") return list;
+    return list.map((r)=>withAutoOverdueStatus(r));
+  },[data,section]);
   const filtered=useMemo(()=>{
     const list = records.filter((r) =>
       Object.values(r).join(" ").toLowerCase().includes(search.toLowerCase()),
@@ -188,7 +227,10 @@ export default function WorkspacePage({ section }: { section: Section }) {
       return dateSort === "newest" ? ib.localeCompare(ia) : ia.localeCompare(ib);
     });
   },[records,search,section,dateSort]);
-  const invoices=data.Invoices||[];
+  const invoices=useMemo(
+    ()=>(data.Invoices||[]).map((inv)=>withAutoOverdueStatus(inv)),
+    [data.Invoices],
+  );
   const customers=useMemo(()=>{
     return (data.Customers||[])
       .map((c)=>{
@@ -215,6 +257,98 @@ export default function WorkspacePage({ section }: { section: Section }) {
   const outstanding=invoices.filter(r=>r.status!=="Paid").reduce((a,r)=>a+(r.amount||0),0);
   const paid=invoices.filter(r=>r.status==="Paid").reduce((a,r)=>a+(r.amount||0),0);
   const customerCount=(data.Customers||[]).length;
+
+  const revenueChart=useMemo(()=>{
+    const now=new Date();
+    type Bucket={key:string;label:string;start:Date;end:Date;paid:number;pending:number};
+    const buckets:Bucket[]=[];
+
+    if(revenuePeriod==="30d"){
+      for(let i=3;i>=0;i-=1){
+        const end=new Date(now);
+        end.setHours(23,59,59,999);
+        end.setDate(end.getDate()-i*7);
+        const start=new Date(end);
+        start.setDate(start.getDate()-6);
+        start.setHours(0,0,0,0);
+        buckets.push({
+          key:`w-${start.toISOString().slice(0,10)}`,
+          label:`${start.getDate()} ${MONTH_SHORT[start.getMonth()]}`,
+          start,
+          end,
+          paid:0,
+          pending:0,
+        });
+      }
+    }else if(revenuePeriod==="year"){
+      const year=now.getFullYear();
+      for(let m=0;m<=now.getMonth();m+=1){
+        const start=new Date(year,m,1,0,0,0,0);
+        const end=new Date(year,m+1,0,23,59,59,999);
+        buckets.push({
+          key:`${year}-${m}`,
+          label:MONTH_SHORT[m],
+          start,
+          end,
+          paid:0,
+          pending:0,
+        });
+      }
+    }else{
+      for(let i=6;i>=0;i-=1){
+        const cursor=new Date(now.getFullYear(),now.getMonth()-i,1);
+        const start=new Date(cursor.getFullYear(),cursor.getMonth(),1,0,0,0,0);
+        const end=new Date(cursor.getFullYear(),cursor.getMonth()+1,0,23,59,59,999);
+        buckets.push({
+          key:`${start.getFullYear()}-${start.getMonth()}`,
+          label:MONTH_SHORT[start.getMonth()],
+          start,
+          end,
+          paid:0,
+          pending:0,
+        });
+      }
+    }
+
+    for(const inv of invoices){
+      const raw=String(inv.date||"").trim();
+      if(!raw) continue;
+      const d=new Date(raw);
+      if(Number.isNaN(d.getTime())) continue;
+      const amount=Number(inv.amount||0)||0;
+      const isPaid=String(inv.status||"").toLowerCase()==="paid";
+      const bucket=buckets.find((b)=>d>=b.start&&d<=b.end);
+      if(!bucket) continue;
+      if(isPaid) bucket.paid+=amount;
+      else bucket.pending+=amount;
+    }
+
+    const peak=Math.max(0,...buckets.map((b)=>Math.max(b.paid,b.pending)));
+    const max=niceChartMax(peak);
+    const bars=buckets.map((b)=>({
+      m:b.label,
+      paid:b.paid,
+      pending:b.pending,
+      a:Math.max(0,Math.round((b.paid/max)*100)),
+      b:Math.max(0,Math.round((b.pending/max)*100)),
+    }));
+    const axis=[max,max*0.75,max*0.5,max*0.25,0].map(formatChartAxis);
+
+    const thisMonth=buckets[buckets.length-1];
+    const prevMonth=buckets[buckets.length-2];
+    let revenueNote="From paid invoices";
+    if(revenuePeriod==="7m"&&thisMonth&&prevMonth){
+      if(prevMonth.paid>0){
+        const pct=((thisMonth.paid-prevMonth.paid)/prevMonth.paid)*100;
+        const sign=pct>=0?"+":"";
+        revenueNote=`${sign}${pct.toFixed(1)}% vs last month`;
+      }else if(thisMonth.paid>0){
+        revenueNote="Up from ₹0 last month";
+      }
+    }
+
+    return {bars,axis,revenueNote};
+  },[invoices,revenuePeriod]);
   function openNew(){
     if(section==="Customers"){
       router.push("/customers/new");
@@ -223,7 +357,9 @@ export default function WorkspacePage({ section }: { section: Section }) {
     setEditing(null);
     if(section==="Invoices"){
       setInvoiceForm({
-        ...createBlankInvoice(data.Invoices || []),
+        ...createBlankInvoice(data.Invoices || [], {
+          dueDays: dueDaysFromSettings(mailSettings),
+        }),
         invoiceNo: "Auto",
       });
       setModal(true);
@@ -240,7 +376,11 @@ export default function WorkspacePage({ section }: { section: Section }) {
     setViewing(null);
     setEditing(r);
     if(section==="Invoices" || r.kind === "invoice" || r.lineItems){
-      setInvoiceForm(normalizeInvoice(r as InvoiceDocument));
+      setInvoiceForm(
+        normalizeInvoice(r as InvoiceDocument, {
+          dueDays: dueDaysFromSettings(mailSettings),
+        }),
+      );
       setModal(true);
       return;
     }
@@ -601,8 +741,8 @@ export default function WorkspacePage({ section }: { section: Section }) {
       actions={pageActions}
     >
       <div className="page-content">
-      {section==="Dashboard"?<><div className="stat-grid"><Stat title="Total revenue" value={money(paid)} note="12.8% from last month" icon={Icons.trendUp} tone="green"/><Stat title="Outstanding" value={money(outstanding)} note={`${invoices.filter(r=>r.status!=="Paid").length} invoices need attention`} icon={Icons.clock} tone="orange"/><Stat title="Total invoices" value={String(invoices.length).padStart(2,"0")} note={`${invoices.filter(r=>r.status==="Paid").length} paid successfully`} icon={Icons.invoices} tone="purple"/><Stat title="Customers" value={String(customerCount).padStart(2,"0")} note="Active customer records" icon={Icons.customers} tone="blue"/></div>
-      <div className="dashboard-grid"><section className="panel revenue-panel"><div className="panel-heading"><div><h2>Revenue overview</h2><p>Keep an eye on your income over time</p></div><select aria-label="Revenue period"><option>Last 7 months</option><option>Last 30 days</option><option>This year</option></select></div><div className="chart-legend"><span><i className="legend-orange"/>Revenue</span><span><i className="legend-pale"/>Pending</span></div><div className="chart"><div className="chart-y"><span>₹80k</span><span>₹60k</span><span>₹40k</span><span>₹20k</span><span>₹0</span></div><div className="chart-bars">{[{m:"Apr",a:52,b:27},{m:"May",a:70,b:39},{m:"Jun",a:60,b:30},{m:"Jul",a:85,b:45},{m:"Aug",a:64,b:34},{m:"Sep",a:94,b:50},{m:"Oct",a:78,b:32}].map(x=><div className="bar-group" key={x.m}><div className="bars"><i style={{height:`${x.a}%`}}/><i style={{height:`${x.b}%`}}/></div><span>{x.m}</span></div>)}</div></div></section>
+      {section==="Dashboard"?<><div className="stat-grid"><Stat title="Total revenue" value={money(paid)} note={revenueChart.revenueNote} icon={Icons.trendUp} tone="green"/><Stat title="Outstanding" value={money(outstanding)} note={`${invoices.filter(r=>r.status!=="Paid").length} invoices need attention`} icon={Icons.clock} tone="orange"/><Stat title="Total invoices" value={String(invoices.length).padStart(2,"0")} note={`${invoices.filter(r=>r.status==="Paid").length} paid successfully`} icon={Icons.invoices} tone="purple"/><Stat title="Customers" value={String(customerCount).padStart(2,"0")} note="Active customer records" icon={Icons.customers} tone="blue"/></div>
+      <div className="dashboard-grid"><section className="panel revenue-panel"><div className="panel-heading"><div><h2>Revenue overview</h2><p>Keep an eye on your income over time</p></div><select aria-label="Revenue period" value={revenuePeriod} onChange={(e)=>setRevenuePeriod(e.target.value as RevenuePeriod)}><option value="7m">Last 7 months</option><option value="30d">Last 30 days</option><option value="year">This year</option></select></div><div className="chart-legend"><span><i className="legend-orange"/>Revenue</span><span><i className="legend-pale"/>Pending</span></div><div className="chart"><div className="chart-y">{revenueChart.axis.map((label,i)=><span key={`y-${i}`}>{label}</span>)}</div><div className="chart-bars">{revenueChart.bars.map((x,i)=><div className="bar-group" key={`bar-${i}-${x.m}`} title={`Paid ${money(x.paid)} · Pending ${money(x.pending)}`}><div className="bars"><i style={{height:`${x.a}%`}}/><i style={{height:`${x.b}%`}}/></div><span>{x.m}</span></div>)}</div></div></section>
       <section className="panel"><div className="panel-heading"><div><h2>Invoice status</h2><p>Quick snapshot of your invoices</p></div><button className="text-link" onClick={()=>goTo("Invoices")}>View all <AppIcon icon={Icons.external} size={12}/></button></div><div className="donut-wrap"><div className="donut"><div><strong>{invoices.length}</strong><span>Total invoices</span></div></div></div><div className="status-list"><StatusLine label="Paid" count={invoices.filter(r=>r.status==="Paid").length} color="dot-green"/><StatusLine label="Pending" count={invoices.filter(r=>r.status==="Pending").length} color="dot-orange"/><StatusLine label="Overdue" count={invoices.filter(r=>r.status==="Overdue").length} color="dot-red"/></div></section></div>
       <section className="panel recent-panel"><div className="panel-heading"><div><h2>Recent invoices</h2><p>Your latest billing activity</p></div><button className="text-link" onClick={()=>goTo("Invoices")}>See all invoices <AppIcon icon={Icons.external} size={12}/></button></div><RecordTable records={invoices.slice(0,4)} section="Invoices" onEdit={openEdit} onDelete={remove} onSend={sendInvoice} onRowClick={openInvoiceDetails} sendingId={sendingId} compact/></section>
       </>:section==="Reports"?(
@@ -614,7 +754,7 @@ export default function WorkspacePage({ section }: { section: Section }) {
             if (full) openInvoiceDetails(full);
           }}
         />
-      ):section==="Settings"?<div className="settings-grid"><section className="panel settings-panel"><h2>Invoice email automation</h2><p>Control automatic payment reminders and overdue status for Pending invoices.</p><div className="setting-row"><div><b>Auto email reminders</b><small>Send reminder emails for Pending / Overdue invoices.</small></div><label style={{display:"flex",alignItems:"center",gap:8,margin:0,fontWeight:600}}><input type="checkbox" checked={mailSettings.autoEmailEnabled} onChange={(e)=>setMailSettings((s)=>({...s,autoEmailEnabled:e.target.checked}))}/> {mailSettings.autoEmailEnabled?"On":"Off"}</label></div><label>Reminder every (days)<input type="number" min={1} max={30} value={mailSettings.reminderIntervalDays} onChange={(e)=>setMailSettings((s)=>({...s,reminderIntervalDays:Number(e.target.value)||2}))}/></label><label>Mark overdue after (days from first email)<input type="number" min={1} max={90} value={mailSettings.overdueAfterDays} onChange={(e)=>setMailSettings((s)=>({...s,overdueAfterDays:Number(e.target.value)||5}))}/></label><p style={{fontSize:11,color:"#98a1af",margin:"12px 0 0"}}>Defaults: reminder every 2 days · overdue after 5 days. Creating an invoice emails the customer once with Pending status. Marking Paid sends one confirmation email.</p><button className="btn btn-primary" type="button" disabled={settingsSaving} onClick={()=>void saveMailSettings()}>{settingsSaving?"Saving...":"Save email settings"}</button><button className="btn btn-secondary" type="button" style={{marginLeft:8}} onClick={()=>void runInvoiceAutomation()}>Run automation now</button></section><section className="panel settings-panel"><h2>Company on invoice</h2><p>Shown on invoice preview, PDF attachment, and emails. Default is Regal Building, Connaught Place.</p><label>Legal name<input value={mailSettings.businessLegalName} onChange={(e)=>setMailSettings((s)=>({...s,businessLegalName:e.target.value}))} placeholder="TECHCULTURE TECHNOLOGIES PRIVATE LIMITED"/></label><label>CIN<input value={mailSettings.businessCin} onChange={(e)=>setMailSettings((s)=>({...s,businessCin:e.target.value}))} placeholder="U62010DL2026PTC460892"/></label><label className="full-field">Business address<textarea rows={3} value={mailSettings.businessAddress} onChange={(e)=>setMailSettings((s)=>({...s,businessAddress:e.target.value}))} placeholder="50, 51, Second Floor, Regal Building, Connaught Place, New Delhi, Central Delhi, Delhi, India, 110001"/></label><button className="btn btn-primary" type="button" disabled={settingsSaving} onClick={()=>void saveMailSettings()}>{settingsSaving?"Saving...":"Save company details"}</button></section><section className="panel settings-panel"><h2>Email sender (SMTP)</h2><p>Dynamically control the Gmail account used to send invoice emails. Saved in database (overrides .env).</p><label>Sender display name<input value={mailSettings.smtpFromName} onChange={(e)=>setMailSettings((s)=>({...s,smtpFromName:e.target.value,businessName:e.target.value}))} placeholder="TechCulture Technologies"/></label><label>SMTP From Email<input type="email" value={mailSettings.smtpFromEmail} onChange={(e)=>setMailSettings((s)=>({...s,smtpFromEmail:e.target.value}))} placeholder="subhamkumarsahoo9090@gmail.com"/></label><label>SMTP User (Gmail login)<input type="email" value={mailSettings.smtpUser} onChange={(e)=>setMailSettings((s)=>({...s,smtpUser:e.target.value}))} placeholder="same as from email usually"/></label><label>Gmail App Password<input type="password" value={mailSettings.smtpPass} onChange={(e)=>setMailSettings((s)=>({...s,smtpPass:e.target.value}))} placeholder={mailSettings.smtpPassConfigured?"Leave blank to keep saved password":"16-character app password"} autoComplete="new-password"/><small style={{color:"#98a1af",fontWeight:500}}>{mailSettings.smtpPassConfigured?"Password already saved. Enter a new one only to change it.":"Generate an App Password from Google Account → Security."}</small></label><label>SMTP Host<input value={mailSettings.smtpHost} onChange={(e)=>setMailSettings((s)=>({...s,smtpHost:e.target.value}))}/></label><label>SMTP Port<input type="number" value={mailSettings.smtpPort} onChange={(e)=>setMailSettings((s)=>({...s,smtpPort:Number(e.target.value)||587}))}/></label><button className="btn btn-primary" type="button" disabled={settingsSaving} onClick={()=>void saveMailSettings()}>{settingsSaving?"Saving...":"Save sender settings"}</button></section></div>:<section className="panel table-panel"><div className="table-toolbar"><div className="search-box"><AppIcon icon={Icons.search} size={14}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={`Search ${section.toLowerCase()}...`}/><kbd>⌘ K</kbd></div><div className="table-actions">{section==="Invoices"?(<label className="invoice-sort-label">Sort by date<select value={dateSort} onChange={(e)=>setDateSort(e.target.value==="oldest"?"oldest":"newest")} aria-label="Sort invoices by date"><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>):null}<button className="btn btn-secondary" onClick={downloadCSV}><AppIcon icon={Icons.download} size={14}/> Export</button>{section!=="Customers"&&section!=="Invoices"&&<button className="btn btn-primary" onClick={openNew}><AppIcon icon={Icons.plus} size={14}/> Add new</button>}</div></div><RecordTable records={filtered} section={section} onEdit={openEdit} onDelete={remove} onSend={sendInvoice} onRowClick={section==="Invoices"?openInvoiceDetails:section==="Customers"?openCustomerDetails:undefined} sendingId={sendingId}/><div className="table-footer"><span>Showing <b>{filtered.length}</b> of <b>{records.length}</b> records</span><div><button disabled><AppIcon icon={Icons.back} size={14}/></button><button className="page-number">1</button><button disabled><AppIcon icon={Icons.external} size={14}/></button></div></div></section>}
+      ):section==="Settings"?<div className="settings-grid"><section className="panel settings-panel"><h2>Invoice email automation</h2><p>After Due Date passes, unpaid invoices get reminder emails until marked Paid. Repeat interval is controlled below. Each invoice can also set its own Due days on create.</p><div className="setting-row"><div><b>Auto email reminders</b><small>Send overdue reminder emails until the invoice is Paid.</small></div><label style={{display:"flex",alignItems:"center",gap:8,margin:0,fontWeight:600}}><input type="checkbox" checked={mailSettings.autoEmailEnabled} onChange={(e)=>setMailSettings((s)=>({...s,autoEmailEnabled:e.target.checked}))}/> {mailSettings.autoEmailEnabled?"On":"Off"}</label></div><label>Reminder every (after due date, until Paid)<div style={{display:"flex",gap:8}}><input type="number" min={1} max={mailSettings.reminderIntervalUnit==="minutes"?1440:mailSettings.reminderIntervalUnit==="hours"?720:90} value={mailSettings.reminderInterval} onChange={(e)=>setMailSettings((s)=>({...s,reminderInterval:Number(e.target.value)||1,reminderIntervalDays:s.reminderIntervalUnit==="days"?Number(e.target.value)||1:s.reminderIntervalDays}))}/><select aria-label="Reminder interval unit" value={mailSettings.reminderIntervalUnit} onChange={(e)=>setMailSettings((s)=>({...s,reminderIntervalUnit:e.target.value as IntervalUnit}))} style={{minWidth:110}}><option value="minutes">Minutes</option><option value="hours">Hours</option><option value="days">Days</option></select></div></label><label>Default due days (new invoices)<div style={{display:"flex",gap:8}}><input type="number" min={1} max={365} value={dueDaysFromSettings(mailSettings)} onChange={(e)=>{const days=Math.max(1,Math.min(365,Number(e.target.value)||1));setMailSettings((s)=>({...s,overdueAfter:days,overdueAfterUnit:"days",overdueAfterDays:days}))}}/><select aria-label="Default due unit" value="days" disabled style={{minWidth:110}}><option value="days">Days</option></select></div></label><p style={{fontSize:11,color:"#98a1af",margin:"12px 0 0"}}>Flow: invoice Due Date pass → status Overdue → reminder mail every {formatIntervalLabel(mailSettings.reminderInterval,mailSettings.reminderIntervalUnit)} until Paid. Default due for new invoices: {dueDaysFromSettings(mailSettings)} day(s) (override per invoice on create). First create still emails once; Paid sends confirmation once.</p><button className="btn btn-primary" type="button" disabled={settingsSaving} onClick={()=>void saveMailSettings()}>{settingsSaving?"Saving...":"Save email settings"}</button><button className="btn btn-secondary" type="button" style={{marginLeft:8}} onClick={()=>void runInvoiceAutomation()}>Run automation now</button></section><section className="panel settings-panel"><h2>Company on invoice</h2><p>Shown on invoice preview, PDF attachment, and emails. Default is Regal Building, Connaught Place.</p><label>Legal name<input value={mailSettings.businessLegalName} onChange={(e)=>setMailSettings((s)=>({...s,businessLegalName:e.target.value}))} placeholder="TECHCULTURE TECHNOLOGIES PRIVATE LIMITED"/></label><label>CIN<input value={mailSettings.businessCin} onChange={(e)=>setMailSettings((s)=>({...s,businessCin:e.target.value}))} placeholder="U62010DL2026PTC460892"/></label><label className="full-field">Business address<textarea rows={3} value={mailSettings.businessAddress} onChange={(e)=>setMailSettings((s)=>({...s,businessAddress:e.target.value}))} placeholder="50, 51, Second Floor, Regal Building, Connaught Place, New Delhi, Central Delhi, Delhi, India, 110001"/></label><button className="btn btn-primary" type="button" disabled={settingsSaving} onClick={()=>void saveMailSettings()}>{settingsSaving?"Saving...":"Save company details"}</button></section><section className="panel settings-panel"><h2>Email sender (SMTP)</h2><p>Dynamically control the Gmail account used to send invoice emails. Saved in database (overrides .env).</p><label>Sender display name<input value={mailSettings.smtpFromName} onChange={(e)=>setMailSettings((s)=>({...s,smtpFromName:e.target.value,businessName:e.target.value}))} placeholder="TechCulture Technologies"/></label><label>SMTP From Email<input type="email" value={mailSettings.smtpFromEmail} onChange={(e)=>setMailSettings((s)=>({...s,smtpFromEmail:e.target.value}))} placeholder="subhamkumarsahoo9090@gmail.com"/></label><label>SMTP User (Gmail login)<input type="email" value={mailSettings.smtpUser} onChange={(e)=>setMailSettings((s)=>({...s,smtpUser:e.target.value}))} placeholder="same as from email usually"/></label><label>Gmail App Password<input type="password" value={mailSettings.smtpPass} onChange={(e)=>setMailSettings((s)=>({...s,smtpPass:e.target.value}))} placeholder={mailSettings.smtpPassConfigured?"Leave blank to keep saved password":"16-character app password"} autoComplete="new-password"/><small style={{color:"#98a1af",fontWeight:500}}>{mailSettings.smtpPassConfigured?"Password already saved. Enter a new one only to change it.":"Generate an App Password from Google Account → Security."}</small></label><label>SMTP Host<input value={mailSettings.smtpHost} onChange={(e)=>setMailSettings((s)=>({...s,smtpHost:e.target.value}))}/></label><label>SMTP Port<input type="number" value={mailSettings.smtpPort} onChange={(e)=>setMailSettings((s)=>({...s,smtpPort:Number(e.target.value)||587}))}/></label><button className="btn btn-primary" type="button" disabled={settingsSaving} onClick={()=>void saveMailSettings()}>{settingsSaving?"Saving...":"Save sender settings"}</button></section></div>:<section className="panel table-panel"><div className="table-toolbar"><div className="search-box"><AppIcon icon={Icons.search} size={14}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={`Search ${section.toLowerCase()}...`}/><kbd>⌘ K</kbd></div><div className="table-actions">{section==="Invoices"?(<label className="invoice-sort-label">Sort by date<select value={dateSort} onChange={(e)=>setDateSort(e.target.value==="oldest"?"oldest":"newest")} aria-label="Sort invoices by date"><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>):null}<button className="btn btn-secondary" onClick={downloadCSV}><AppIcon icon={Icons.download} size={14}/> Export</button>{section!=="Customers"&&section!=="Invoices"&&<button className="btn btn-primary" onClick={openNew}><AppIcon icon={Icons.plus} size={14}/> Add new</button>}</div></div><RecordTable records={filtered} section={section} onEdit={openEdit} onDelete={remove} onSend={sendInvoice} onRowClick={section==="Invoices"?openInvoiceDetails:section==="Customers"?openCustomerDetails:undefined} sendingId={sendingId}/><div className="table-footer"><span>Showing <b>{filtered.length}</b> of <b>{records.length}</b> records</span><div><button disabled><AppIcon icon={Icons.back} size={14}/></button><button className="page-number">1</button><button disabled><AppIcon icon={Icons.external} size={14}/></button></div></div></section>}
       <footer className="footer"><span>© 2026 TechCulture Finance</span><span><i/> All changes saved locally <b>·</b> Made for your business</span></footer></div>
     {viewing && (
       <InvoiceDetailModal
@@ -649,7 +789,6 @@ export default function WorkspacePage({ section }: { section: Section }) {
         <form className={`record-modal ${section==="Invoices"?"invoice-editor-modal":""}`} onSubmit={save}>
           <div className="modal-top">
             <div>
-              <span className="eyebrow">{editing?"UPDATE RECORD":"NEW RECORD"}</span>
               <h2>{editing?"Edit":"Add"} {section==="Invoices"?"invoice":"payment"}</h2>
             </div>
             <button type="button" className="modal-close" onClick={()=>setModal(false)} aria-label="Close"><AppIcon icon={Icons.close} size={18}/></button>
@@ -660,6 +799,7 @@ export default function WorkspacePage({ section }: { section: Section }) {
               customers={customers}
               onChange={setInvoiceForm}
               isNew={!editing}
+              defaultDueDays={dueDaysFromSettings(mailSettings)}
               companySettings={mailSettings}
             />
           ) : (

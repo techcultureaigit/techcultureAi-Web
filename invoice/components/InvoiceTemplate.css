@@ -368,11 +368,131 @@
   }
 }
 
+/* Invoice details modal: compact invoice + room for bottom buttons */
+.invoice-detail-modal .tc-invoice {
+  padding: 10px 12px 8px;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(23, 32, 51, 0.05);
+  zoom: 0.88;
+}
+
+.invoice-detail-modal .tc-invoice-top {
+  gap: 12px;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.invoice-detail-modal .tc-invoice-logo-img {
+  height: 36px;
+  max-width: 150px;
+}
+
+.invoice-detail-modal .tc-invoice-company-under-name p {
+  font-size: 9px;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.invoice-detail-modal .tc-invoice-meta h1 {
+  font-size: 22px;
+  margin: 0;
+}
+
+.invoice-detail-modal .tc-invoice-bill-meta {
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.invoice-detail-modal .tc-invoice-party h3 {
+  margin: 0 0 4px;
+  font-size: 9px;
+}
+
+.invoice-detail-modal .tc-invoice-party b {
+  font-size: 11px;
+}
+
+.invoice-detail-modal .tc-invoice-party p {
+  font-size: 9px;
+  line-height: 1.35;
+  margin: 0 0 1px;
+}
+
+.invoice-detail-modal .tc-invoice-meta-grid {
+  padding: 8px 10px;
+  gap: 4px 10px;
+}
+
+.invoice-detail-modal .tc-invoice-meta-col p {
+  font-size: 9px;
+  margin: 0 0 3px;
+}
+
+.invoice-detail-modal .tc-invoice-table th,
+.invoice-detail-modal .tc-invoice-table td {
+  font-size: 9px;
+  padding: 5px 6px;
+}
+
+.invoice-detail-modal .tc-invoice-summary-row-wrap {
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.invoice-detail-modal .tc-invoice-words {
+  font-size: 9px;
+}
+
+.invoice-detail-modal .tc-invoice-summary-card {
+  padding: 8px 10px;
+}
+
+.invoice-detail-modal .tc-invoice-summary-row {
+  font-size: 10px;
+  padding: 3px 0;
+}
+
+.invoice-detail-modal .tc-invoice-footer-grid {
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.invoice-detail-modal .tc-invoice-box {
+  padding: 8px 10px;
+}
+
+.invoice-detail-modal .tc-invoice-box h4 {
+  font-size: 9px;
+  margin: 0 0 4px;
+}
+
+.invoice-detail-modal .tc-invoice-box p {
+  font-size: 9px;
+  line-height: 1.35;
+  margin: 0 0 1px;
+}
+
+.invoice-detail-modal .tc-invoice-sign-for {
+  font-size: 9px;
+}
+
+.invoice-detail-modal .tc-invoice-signature-img {
+  max-height: 42px;
+}
+
+.invoice-detail-modal .tc-invoice-sign-title {
+  font-size: 10px;
+}
+
 @media print {
   .tc-invoice {
     border: 0;
     box-shadow: none;
     border-radius: 0;
     padding: 0;
+  }
+
+  .invoice-detail-modal .tc-invoice {
+    zoom: 1;
   }
 }

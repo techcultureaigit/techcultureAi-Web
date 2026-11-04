@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
-  daysBetween,
+  elapsedMs,
+  intervalToMs,
   normalizeInvoiceMailSettings,
   type InvoiceMailSettings,
 } from "@/lib/invoiceSettings";
@@ -13,6 +14,8 @@ type InvoiceDoc = {
   id: string;
   invoiceNo?: string;
   status?: string;
+  date?: string;
+  dueDate?: string | null;
   firstSentAt?: string | null;
   lastReminderAt?: string | null;
 };
@@ -38,6 +41,36 @@ async function apiFetch<T>(
   return payload as T;
 }
 
+/** True once the due calendar day is over (local). */
+function dueDateCrossed(dueDateStr: string | null | undefined, now = new Date()) {
+  if (!dueDateStr) return false;
+  const raw = String(dueDateStr).trim().slice(0, 10);
+  const parts = raw.split("-").map(Number);
+  if (parts.length < 3 || parts.some((n) => Number.isNaN(n))) {
+    const due = new Date(dueDateStr);
+    if (Number.isNaN(due.getTime())) return false;
+    due.setHours(23, 59, 59, 999);
+    return now.getTime() > due.getTime();
+  }
+  const [y, m, d] = parts;
+  const dueEnd = new Date(y, m - 1, d, 23, 59, 59, 999);
+  return now.getTime() > dueEnd.getTime();
+}
+
+function endOfDueDate(dueDateStr: string | null | undefined) {
+  if (!dueDateStr) return null;
+  const raw = String(dueDateStr).trim().slice(0, 10);
+  const parts = raw.split("-").map(Number);
+  if (parts.length >= 3 && !parts.some((n) => Number.isNaN(n))) {
+    const [y, m, d] = parts;
+    return new Date(y, m - 1, d, 23, 59, 59, 999);
+  }
+  const due = new Date(dueDateStr);
+  if (Number.isNaN(due.getTime())) return null;
+  due.setHours(23, 59, 59, 999);
+  return due;
+}
+
 export async function POST(request: Request) {
   try {
     const auth = request.headers.get("authorization") || "";
@@ -55,19 +88,13 @@ export async function POST(request: Request) {
     );
     const settings = normalizeInvoiceMailSettings(settingsRes.settings);
 
-    if (!settings.autoEmailEnabled) {
-      return NextResponse.json({
-        success: true,
-        message: "Auto email is disabled in settings",
-        settings,
-        overdueUpdated: 0,
-        remindersSent: 0,
-      });
-    }
-
     const list = await apiFetch<{ invoices: InvoiceDoc[] }>("/invoices", token);
     const invoices = list.invoices || [];
     const now = new Date();
+    const reminderEveryMs = intervalToMs(
+      settings.reminderInterval,
+      settings.reminderIntervalUnit,
+    );
 
     let overdueUpdated = 0;
     let remindersSent = 0;
@@ -75,19 +102,12 @@ export async function POST(request: Request) {
 
     for (const invoice of invoices) {
       const status = String(invoice.status || "").toLowerCase();
+      if (status === "paid" || status === "draft" || status === "cancelled") continue;
       if (status !== "pending" && status !== "overdue") continue;
+      if (!dueDateCrossed(invoice.dueDate, now)) continue;
 
-      const firstSentAt = invoice.firstSentAt || null;
-      if (!firstSentAt) continue;
-
-      let nextStatus = invoice.status || "Pending";
-
-      // Auto overdue after N days from first payment email
-      if (
-        status === "pending" &&
-        daysBetween(firstSentAt, now) >= settings.overdueAfterDays
-      ) {
-        nextStatus = "Overdue";
+      // 1) Always flip Pending → Overdue after due date (even if auto-email is Off)
+      if (status === "pending") {
         try {
           await apiFetch(`/invoices/${encodeURIComponent(invoice.id)}`, token, {
             method: "PUT",
@@ -100,31 +120,41 @@ export async function POST(request: Request) {
               err instanceof Error ? err.message : "failed"
             }`,
           );
+          continue;
         }
       }
 
-      // Reminder every N days while pending/overdue
-      const lastTouch = invoice.lastReminderAt || firstSentAt;
-      if (daysBetween(lastTouch, now) >= settings.reminderIntervalDays) {
-        try {
-          await apiFetch("/mail/send", token, {
-            method: "POST",
-            body: JSON.stringify({
-              invoiceId: invoice.id,
-              kind: "reminder",
-            }),
-          });
-          remindersSent += 1;
-          if (nextStatus === "Overdue" && status === "pending") {
-            // already updated above
-          }
-        } catch (err) {
-          errors.push(
-            `${invoice.invoiceNo || invoice.id}: ${
-              err instanceof Error ? err.message : "reminder failed"
-            }`,
-          );
-        }
+      // 2) Reminder emails only when automation is enabled
+      if (!settings.autoEmailEnabled) continue;
+
+      const dueEnd = endOfDueDate(invoice.dueDate);
+      const lastTouch = invoice.lastReminderAt || invoice.firstSentAt || null;
+      const lastTouchTime = lastTouch ? new Date(lastTouch).getTime() : NaN;
+      const alreadyRemindedAfterDue =
+        dueEnd &&
+        !Number.isNaN(lastTouchTime) &&
+        lastTouchTime > dueEnd.getTime();
+      const shouldRemind = alreadyRemindedAfterDue
+        ? elapsedMs(lastTouch, now) >= reminderEveryMs
+        : true;
+
+      if (!shouldRemind) continue;
+
+      try {
+        await apiFetch("/mail/send", token, {
+          method: "POST",
+          body: JSON.stringify({
+            invoiceId: invoice.id,
+            kind: "reminder",
+          }),
+        });
+        remindersSent += 1;
+      } catch (err) {
+        errors.push(
+          `${invoice.invoiceNo || invoice.id}: ${
+            err instanceof Error ? err.message : "reminder failed"
+          }`,
+        );
       }
     }
 

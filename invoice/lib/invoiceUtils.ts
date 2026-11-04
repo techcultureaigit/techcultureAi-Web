@@ -21,6 +21,33 @@ export function addDaysToIsoDate(dateStr: string | undefined, days: number) {
   return base.toISOString().slice(0, 10);
 }
 
+/** True after the due calendar day has ended (local). */
+export function isDueDateCrossed(dueDateStr?: string | null, now = new Date()) {
+  if (!dueDateStr) return false;
+  const raw = String(dueDateStr).trim().slice(0, 10);
+  const parts = raw.split("-").map(Number);
+  if (parts.length >= 3 && !parts.some((n) => Number.isNaN(n))) {
+    const [y, m, d] = parts;
+    const dueEnd = new Date(y, m - 1, d, 23, 59, 59, 999);
+    return now.getTime() > dueEnd.getTime();
+  }
+  const due = new Date(dueDateStr);
+  if (Number.isNaN(due.getTime())) return false;
+  due.setHours(23, 59, 59, 999);
+  return now.getTime() > due.getTime();
+}
+
+/** Pending invoices past due date show as Overdue in UI. */
+export function withAutoOverdueStatus<T extends { status?: string; dueDate?: string | null }>(
+  invoice: T,
+  now = new Date(),
+): T {
+  const status = String(invoice.status || "").toLowerCase();
+  if (status !== "pending") return invoice;
+  if (!isDueDateCrossed(invoice.dueDate, now)) return invoice;
+  return { ...invoice, status: "Overdue" };
+}
+
 export function invoiceDurationLabel(dateStr?: string) {
   const date = dateStr ? new Date(dateStr) : new Date();
   if (Number.isNaN(date.getTime())) return "";
@@ -263,9 +290,13 @@ export function nextInvoiceNo(existing: Array<{ invoiceNo?: string; id?: string 
   return `${String(max + 1).padStart(3, "0")}/${year}`;
 }
 
-export function createBlankInvoice(existing: Array<{ invoiceNo?: string; id?: string }> = []): InvoiceDocument {
+export function createBlankInvoice(
+  existing: Array<{ invoiceNo?: string; id?: string }> = [],
+  opts: { dueDays?: number } = {},
+): InvoiceDocument {
   const invoiceNo = nextInvoiceNo(existing);
   const date = new Date().toISOString().slice(0, 10);
+  const dueDays = Math.max(1, Number(opts.dueDays) || 5);
   return {
     id: `INV-${Date.now().toString().slice(-6)}`,
     invoiceNo,
@@ -275,7 +306,7 @@ export function createBlankInvoice(existing: Array<{ invoiceNo?: string; id?: st
     amount: 0,
     status: "Pending",
     date,
-    dueDate: addDaysToIsoDate(date, 15),
+    dueDate: addDaysToIsoDate(date, dueDays),
     placeOfSupply: "Delhi (07)",
     accountManager: "",
     invoiceDuration: invoiceDurationLabel(date),
@@ -299,8 +330,12 @@ export function createBlankInvoice(existing: Array<{ invoiceNo?: string; id?: st
   };
 }
 
-export function normalizeInvoice(input: Partial<InvoiceDocument> & { id: string }): InvoiceDocument {
-  const base = createBlankInvoice();
+export function normalizeInvoice(
+  input: Partial<InvoiceDocument> & { id: string },
+  opts: { dueDays?: number } = {},
+): InvoiceDocument {
+  const dueDays = Math.max(1, Number(opts.dueDays) || 5);
+  const base = createBlankInvoice([], { dueDays });
   const lineItems =
     input.lineItems && input.lineItems.length > 0
       ? input.lineItems.map((item) => ({
@@ -340,7 +375,7 @@ export function normalizeInvoice(input: Partial<InvoiceDocument> & { id: string 
     amount,
     status: input.status || "Pending",
     date: input.date || base.date,
-    dueDate: input.dueDate || addDaysToIsoDate(input.date || base.date, 15),
+    dueDate: input.dueDate || addDaysToIsoDate(input.date || base.date, dueDays),
     placeOfSupply:
       input.placeOfSupply ||
       (billTo.stateName

@@ -68,76 +68,60 @@ export default function InvoiceDetailModal({
       }}
     >
       <div className="record-modal invoice-detail-modal" role="dialog" aria-modal="true">
-        <div className="modal-top">
-          <div>
-            <span className="eyebrow">INVOICE DETAILS</span>
-            <h2>{doc.invoiceNo || doc.id}</h2>
-          </div>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
-            <AppIcon icon={Icons.close} size={18} />
-          </button>
+        <div className="invoice-detail-scale">
+          <InvoiceTemplate invoice={doc} companySettings={companySettings} />
+
+          {doc.paymentProofUrl ? (
+            <div className="invoice-detail-notes">
+              <small>Payment proof</small>
+              <p>
+                <a href={doc.paymentProofUrl} target="_blank" rel="noreferrer">
+                  {doc.paymentProofName || "View attached proof"}
+                </a>
+              </p>
+            </div>
+          ) : null}
+
+          {showPaidForm && canMarkPaid ? (
+            <div className="invoice-detail-notes">
+              <small>Mark as Paid</small>
+              <p style={{ marginBottom: 8 }}>
+                Attach the payment proof screenshot you received from the customer, then confirm.
+              </p>
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => {
+                  void onProofChange(e.target.files?.[0] || null);
+                }}
+              />
+              {proofName ? (
+                <p style={{ marginTop: 6, fontSize: 12, color: "#445264" }}>Selected: {proofName}</p>
+              ) : null}
+              <div className="modal-actions" style={{ marginTop: 10, borderTop: 0, paddingTop: 0 }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowPaidForm(false)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={markingPaid}
+                  onClick={() =>
+                    onMarkPaid?.(
+                      proofUrl
+                        ? { paymentProofUrl: proofUrl, paymentProofName: proofName || "payment-proof" }
+                        : null,
+                    )
+                  }
+                >
+                  {markingPaid ? "Updating..." : "Confirm Paid + send email"}
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
 
-        <InvoiceTemplate invoice={doc} companySettings={companySettings} />
-
-        {doc.paymentProofUrl ? (
-          <div className="invoice-detail-notes" style={{ marginTop: 14 }}>
-            <small>Payment proof</small>
-            <p>
-              <a href={doc.paymentProofUrl} target="_blank" rel="noreferrer">
-                {doc.paymentProofName || "View attached proof"}
-              </a>
-            </p>
-            {doc.paymentProofUrl.startsWith("data:image") ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={doc.paymentProofUrl}
-                alt="Payment proof"
-                style={{ maxWidth: "100%", marginTop: 10, borderRadius: 10, border: "1px solid #eef1f5" }}
-              />
-            ) : null}
-          </div>
-        ) : null}
-
-        {showPaidForm && canMarkPaid ? (
-          <div className="invoice-detail-notes" style={{ marginTop: 14 }}>
-            <small>Mark as Paid</small>
-            <p style={{ marginBottom: 10 }}>
-              Attach the payment proof screenshot you received from the customer, then confirm.
-            </p>
-            <input
-              type="file"
-              accept="image/*,.pdf"
-              onChange={(e) => {
-                void onProofChange(e.target.files?.[0] || null);
-              }}
-            />
-            {proofName ? (
-              <p style={{ marginTop: 8, fontSize: 12, color: "#445264" }}>Selected: {proofName}</p>
-            ) : null}
-            <div className="modal-actions" style={{ marginTop: 14, borderTop: 0, paddingTop: 0 }}>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowPaidForm(false)}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={markingPaid}
-                onClick={() =>
-                  onMarkPaid?.(
-                    proofUrl
-                      ? { paymentProofUrl: proofUrl, paymentProofName: proofName || "payment-proof" }
-                      : null,
-                  )
-                }
-              >
-                {markingPaid ? "Updating..." : "Confirm Paid + send email"}
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        <div className="modal-actions" style={{ marginTop: 16 }}>
+        <div className="modal-actions invoice-detail-actions">
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             Close
           </button>

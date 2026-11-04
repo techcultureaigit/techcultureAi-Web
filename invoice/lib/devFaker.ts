@@ -152,8 +152,16 @@ export function fakeInvoice(base: InvoiceDocument): InvoiceDocument {
   };
 
   const date = faker.date.recent({ days: 40 }).toISOString().slice(0, 10);
+  let dueOffsetDays = 5;
+  if (base.date && base.dueDate) {
+    const from = new Date(base.date).getTime();
+    const to = new Date(base.dueDate).getTime();
+    if (!Number.isNaN(from) && !Number.isNaN(to)) {
+      dueOffsetDays = Math.max(1, Math.round((to - from) / (24 * 60 * 60 * 1000)));
+    }
+  }
   const due = new Date(date);
-  due.setDate(due.getDate() + 15);
+  due.setDate(due.getDate() + dueOffsetDays);
 
   return {
     ...base,
