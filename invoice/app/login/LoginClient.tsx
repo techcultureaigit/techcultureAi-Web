@@ -14,7 +14,10 @@ export default function LoginClient() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (getAuthUser()) router.replace("/dashboard");
+    // Already signed in → skip login and open dashboard
+    if (getAuthUser()) {
+      router.replace("/dashboard");
+    }
   }, [router]);
 
   async function handleSubmit(e: FormEvent) {
