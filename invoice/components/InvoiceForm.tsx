@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import CustomerSearchSelect, {
   type CustomerOption,
 } from "@/components/CustomerSearchSelect";
@@ -21,6 +22,61 @@ import {
   resolveGstBreakdown,
 } from "@/lib/invoiceUtils";
 import "./InvoiceForm.css";
+
+/** Natural preview page width so the full invoice layout stays intact while scaling to fit. */
+const PREVIEW_PAGE_WIDTH = 720;
+
+function InvoicePreviewFrame({ children }: { children: ReactNode }) {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [scaledHeight, setScaledHeight] = useState<number | undefined>();
+  const [scaledWidth, setScaledWidth] = useState<number | undefined>();
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    const page = pageRef.current;
+    if (!frame || !page) return;
+
+    const update = () => {
+      const availW = frame.clientWidth;
+      const pageH = page.offsetHeight || 1;
+      // Widen preview to fill column (touch the form). Page shell stays 100vh;
+      // if invoice is taller than the pane, only this frame scrolls.
+      const next = availW > 0 ? Math.min(1, availW / PREVIEW_PAGE_WIDTH) : 1;
+      setScale(next);
+      setScaledWidth(PREVIEW_PAGE_WIDTH * next);
+      setScaledHeight(pageH * next);
+    };
+
+    const ro = new ResizeObserver(update);
+    ro.observe(frame);
+    ro.observe(page);
+    update();
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div ref={frameRef} className="invoice-editor-preview-frame">
+      <div
+        className="invoice-editor-preview-scaler"
+        style={{ width: scaledWidth, height: scaledHeight }}
+      >
+        <div
+          ref={pageRef}
+          className="invoice-editor-preview-page"
+          style={{
+            width: PREVIEW_PAGE_WIDTH,
+            transform: `scale(${scale})`,
+            transformOrigin: "top left",
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 type Props = {
   value: InvoiceDocument;
@@ -741,9 +797,9 @@ export default function InvoiceForm({
       </div>
 
       <div className="invoice-editor-preview">
-        <div className="invoice-editor-preview-frame">
+        <InvoicePreviewFrame>
           <InvoiceTemplate invoice={invoice} companySettings={companySettings} />
-        </div>
+        </InvoicePreviewFrame>
       </div>
     </div>
   );

@@ -149,9 +149,15 @@ export async function sendInvoiceMail(req, res) {
     });
 
     const { transporter, config } = createTransport(mailSettings);
+    const ccList = (Array.isArray(mailSettings.ccEmails) ? mailSettings.ccEmails : [])
+      .map((e) => String(e || "").trim().toLowerCase())
+      .filter((e) => e && e !== to && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+    const uniqueCc = [...new Set(ccList)];
+
     const info = await transporter.sendMail({
       from: `"${config.fromName}" <${config.fromEmail}>`,
       to,
+      ...(uniqueCc.length ? { cc: uniqueCc.join(", ") } : {}),
       subject: email.subject,
       text: email.text,
       html: email.html,
@@ -184,11 +190,14 @@ export async function sendInvoiceMail(req, res) {
 
     return res.json({
       success: true,
-      message: `${label} to ${to} (PDF attached)`,
+      message: uniqueCc.length
+        ? `${label} to ${to} (PDF attached, CC: ${uniqueCc.join(", ")})`
+        : `${label} to ${to} (PDF attached)`,
       messageId: info.messageId,
       sentAt,
       kind,
       to,
+      cc: uniqueCc,
       invoiceId: invoice.id,
       patch,
     });

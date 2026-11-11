@@ -24,6 +24,8 @@ export type InvoiceMailSettings = {
   smtpFromEmail: string;
   smtpFromName: string;
   smtpPassConfigured?: boolean;
+  /** Always CC’d on every client invoice email (create / reminder / paid). */
+  ccEmails: string[];
 };
 
 export const DEFAULT_INVOICE_MAIL_SETTINGS: InvoiceMailSettings = {
@@ -46,7 +48,30 @@ export const DEFAULT_INVOICE_MAIL_SETTINGS: InvoiceMailSettings = {
   smtpFromEmail: "",
   smtpFromName: "TechCulture Technologies",
   smtpPassConfigured: false,
+  ccEmails: [],
 };
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Unique, lowercased, valid emails from array or comma/newline text. */
+export function normalizeCcEmails(input?: unknown): string[] {
+  const list = Array.isArray(input)
+    ? input
+    : String(input ?? "")
+        .split(/[,;\n]+/)
+        .map((part) => part.trim());
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of list) {
+    const email = String(raw || "")
+      .trim()
+      .toLowerCase();
+    if (!email || !EMAIL_RE.test(email) || seen.has(email)) continue;
+    seen.add(email);
+    out.push(email);
+  }
+  return out;
+}
 
 function clampInterval(value: number, unit: IntervalUnit) {
   const n = Math.max(1, Math.floor(Number(value) || 1));
@@ -164,6 +189,9 @@ export function normalizeInvoiceMailSettings(
       String(input?.smtpFromName || "").trim() ||
       DEFAULT_INVOICE_MAIL_SETTINGS.smtpFromName,
     smtpPassConfigured: Boolean(input?.smtpPassConfigured),
+    ccEmails: normalizeCcEmails(
+      (input as { ccEmails?: unknown } | null | undefined)?.ccEmails,
+    ),
   };
 }
 

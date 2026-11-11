@@ -246,7 +246,29 @@ export function defaultInvoiceSettings() {
     smtpPass: "",
     smtpFromEmail: "",
     smtpFromName: "TechCulture Technologies",
+    ccEmails: [],
   };
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function normalizeCcEmails(input) {
+  const list = Array.isArray(input)
+    ? input
+    : String(input ?? "")
+        .split(/[,;\n]+/)
+        .map((part) => part.trim());
+  const seen = new Set();
+  const out = [];
+  for (const raw of list) {
+    const email = String(raw || "")
+      .trim()
+      .toLowerCase();
+    if (!email || !EMAIL_RE.test(email) || seen.has(email)) continue;
+    seen.add(email);
+    out.push(email);
+  }
+  return out;
 }
 
 export function shapeInvoiceSettings(input = {}, { keepPass } = {}) {
@@ -292,6 +314,7 @@ export function shapeInvoiceSettings(input = {}, { keepPass } = {}) {
     smtpPass,
     smtpFromEmail: str(input.smtpFromEmail || input.smtpUser).toLowerCase(),
     smtpFromName: str(input.smtpFromName || input.businessName, base.smtpFromName),
+    ccEmails: normalizeCcEmails(input.ccEmails),
   };
 }
 
