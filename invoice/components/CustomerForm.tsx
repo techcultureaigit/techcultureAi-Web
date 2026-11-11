@@ -240,11 +240,108 @@ export default function CustomerForm({
     return record.companyName.trim() || full || record.name || record.displayName || "";
   }
 
+  function primaryContactLabel(record: Pick<CustomerRecord, "salutation" | "firstName" | "lastName">) {
+    return [record.salutation, record.firstName, record.lastName]
+      .map((part) => String(part || "").trim())
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+  }
+
+  function isContactSyncedWithPrimary(record: CustomerRecord, person?: ContactPerson | null) {
+    const contact = person || record.contactPersons[0];
+    if (!contact) return true;
+    return (
+      String(contact.salutation || "") === String(record.salutation || "") &&
+      String(contact.firstName || "") === String(record.firstName || "") &&
+      String(contact.lastName || "") === String(record.lastName || "")
+    );
+  }
+
+  function syncPrimaryToContactAndAttention(
+    prev: CustomerRecord,
+    next: CustomerRecord,
+    opts: { syncAttention?: boolean; syncContact?: boolean } = {},
+  ) {
+    const syncAttention = opts.syncAttention !== false;
+    const syncContact = opts.syncContact !== false;
+    const prevLabel = primaryContactLabel(prev);
+    const nextLabel = primaryContactLabel(next);
+    let result = next;
+
+    if (syncAttention) {
+      const attention = String(prev.billingAddress?.attention || "");
+      const company = String(prev.companyName || "");
+      const attentionWasAuto =
+        !attention.trim() ||
+        attention === prevLabel ||
+        attention === company ||
+        attention === String(prev.firstName || "").trim() ||
+        attention === [prev.firstName, prev.lastName].filter(Boolean).join(" ").trim();
+      if (attentionWasAuto) {
+        result = {
+          ...result,
+          billingAddress: {
+            ...result.billingAddress,
+            attention: nextLabel,
+          },
+        };
+        if (result.sameAsBilling) {
+          result = {
+            ...result,
+            shippingAddress: { ...result.billingAddress },
+          };
+        }
+      }
+    }
+
+    if (syncContact) {
+      const first = result.contactPersons[0];
+      if (!first || isContactSyncedWithPrimary(prev, first)) {
+        const contactPersons = [...result.contactPersons];
+        const base = first || emptyContact();
+        contactPersons[0] = {
+          ...base,
+          salutation: result.salutation,
+          firstName: result.firstName,
+          lastName: result.lastName,
+        };
+        result = { ...result, contactPersons };
+      }
+    }
+
+    return result;
+  }
+
   function update<K extends keyof CustomerRecord>(key: K, value: CustomerRecord[K]) {
     setForm((prev) => {
-      const next = { ...prev, [key]: value };
+      let next = { ...prev, [key]: value };
+      if (key === "companyName") {
+        const company = String(value || "");
+        const prevCompany = String(prev.companyName || "");
+        const attention = String(prev.billingAddress?.attention || "");
+        const primaryLabel = primaryContactLabel(prev);
+        const hasPrimaryContact = Boolean(prev.firstName.trim() || prev.lastName.trim());
+        // Keep Attention in sync with Company Name until Attention/Primary Contact is customized
+        if (
+          (!attention.trim() || attention === prevCompany) &&
+          !hasPrimaryContact &&
+          attention !== primaryLabel
+        ) {
+          next.billingAddress = {
+            ...next.billingAddress,
+            attention: company,
+          };
+          if (next.sameAsBilling) {
+            next.shippingAddress = { ...next.billingAddress };
+          }
+        }
+      }
       if (key === "companyName" || key === "firstName" || key === "lastName") {
         next.name = customerDisplayName(next);
+      }
+      if (key === "salutation" || key === "firstName" || key === "lastName") {
+        next = syncPrimaryToContactAndAttention(prev, next);
       }
       if (key === "email") next.email = String(value);
       if (key === "mobile" || key === "workPhone") {
@@ -282,15 +379,36 @@ export default function CustomerForm({
     value: string,
   ) {
     setForm((prev) => {
+      const prevAttention = String(prev.billingAddress?.attention || "");
       const address = { ...prev[which], [key]: value };
-      if (which === "billingAddress" && prev.sameAsBilling) {
-        return { ...prev, billingAddress: address, shippingAddress: { ...address } };
+      let next: CustomerRecord = { ...prev, [which]: address };
+
+      // Attention → Company Name auto-fill (until user customizes Company Name)
+      // Do NOT sync Attention back into Primary Contact
+      if (which === "billingAddress" && key === "attention") {
+        const company = String(prev.companyName || "");
+        if (!company.trim() || company === prevAttention) {
+          next = {
+            ...next,
+            companyName: value,
+            name: customerDisplayName({ ...next, companyName: value }),
+          };
+        }
       }
-      return { ...prev, [which]: address };
+
+      if (which === "billingAddress" && next.sameAsBilling) {
+        next = {
+          ...next,
+          billingAddress: address,
+          shippingAddress: { ...address },
+        };
+      }
+      return next;
     });
   }
 
   function updateContact(id: string, key: keyof ContactPerson, value: string) {
+    // Contact person edits stay local — never push back into Primary Contact
     setForm((prev) => ({
       ...prev,
       contactPersons: prev.contactPersons.map((person) =>

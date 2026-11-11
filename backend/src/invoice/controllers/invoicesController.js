@@ -68,8 +68,17 @@ export async function getInvoice(req, res) {
 export async function createInvoice(req, res) {
   try {
     const body = { ...(req.body || {}) };
-    // Always auto-generate invoice number on create
-    body.invoiceNo = await nextInvoiceNo();
+    const requestedNo = String(body.invoiceNo || "").trim();
+    // Auto-generate when blank / placeholder; otherwise keep user-entered number
+    if (
+      !requestedNo ||
+      /^auto$/i.test(requestedNo) ||
+      /^auto[- ]?generated/i.test(requestedNo)
+    ) {
+      body.invoiceNo = await nextInvoiceNo();
+    } else {
+      body.invoiceNo = requestedNo;
+    }
 
     const check = validateInvoice(body);
     if (!check.ok) {
@@ -97,6 +106,12 @@ export async function createInvoice(req, res) {
       invoice: shapeInvoice(doc, { keepId: doc.id }),
     });
   } catch (err) {
+    if (err?.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Invoice number already exists",
+      });
+    }
     console.error("[invoice] createInvoice", err);
     return res.status(500).json({ success: false, message: "Failed to create invoice" });
   }
@@ -115,15 +130,27 @@ export async function updateInvoice(req, res) {
       return res.status(400).json({ success: false, message: check.message });
     }
 
-    if (check.data.invoiceNo !== existing.invoiceNo) {
+    const nextNo = String(check.data.invoiceNo || "").trim();
+    if (!nextNo) {
+      return res.status(400).json({
+        success: false,
+        message: "Invoice number is required",
+      });
+    }
+    check.data.invoiceNo = nextNo;
+
+    if (nextNo !== String(existing.invoiceNo || "").trim()) {
       const clash = await col().findOne({
-        invoiceNo: check.data.invoiceNo,
-        id: { $ne: id },
+        invoiceNo: nextNo,
+        $and: [
+          { id: { $ne: id } },
+          { _id: { $ne: existing._id } },
+        ],
       });
       if (clash) {
         return res.status(409).json({
           success: false,
-          message: `Invoice number ${check.data.invoiceNo} already exists`,
+          message: `Invoice number ${nextNo} already exists`,
         });
       }
     }
@@ -140,6 +167,12 @@ export async function updateInvoice(req, res) {
     await col().replaceOne({ _id: existing._id }, doc);
     return res.json({ success: true, invoice: shapeInvoice(doc, { keepId: id }) });
   } catch (err) {
+    if (err?.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Invoice number already exists",
+      });
+    }
     console.error("[invoice] updateInvoice", err);
     return res.status(500).json({ success: false, message: "Failed to update invoice" });
   }

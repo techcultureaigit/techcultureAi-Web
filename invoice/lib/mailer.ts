@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { formatInvoiceDate } from "@/lib/invoiceUtils";
 
 function requiredEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -135,7 +136,7 @@ export function buildInvoiceEmail(payload: InvoiceMailPayload) {
     "",
     `Invoice: ${payload.invoiceId}`,
     `Amount: ${amount}`,
-    `Date: ${payload.date}`,
+    `Date: ${formatInvoiceDate(payload.date)}`,
     "",
     ...(lines.length ? ["Line items:", ...lines, ""] : []),
     payload.description ? `Notes: ${payload.description}` : "",
@@ -156,7 +157,7 @@ export function buildInvoiceEmail(payload: InvoiceMailPayload) {
       <table style="border-collapse:collapse;width:100%;margin:0 0 18px">
         <tr><td style="padding:8px 0;color:#7d8796">Invoice</td><td style="padding:8px 0;font-weight:700">${payload.invoiceId}</td></tr>
         <tr><td style="padding:8px 0;color:#7d8796">Amount</td><td style="padding:8px 0;font-weight:700">${amount}</td></tr>
-        <tr><td style="padding:8px 0;color:#7d8796">Date</td><td style="padding:8px 0;font-weight:700">${payload.date}</td></tr>
+        <tr><td style="padding:8px 0;color:#7d8796">Date</td><td style="padding:8px 0;font-weight:700">${formatInvoiceDate(payload.date)}</td></tr>
       </table>
       ${
         lineRows

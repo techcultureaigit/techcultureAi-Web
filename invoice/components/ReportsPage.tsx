@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AppIcon, Icons } from "@/components/icons";
+import { formatInvoiceDate } from "@/lib/invoiceUtils";
 import { toast } from "@/lib/notify";
 import "./ReportsPage.css";
 
@@ -195,7 +196,7 @@ export default function ReportsPage({ invoices, customers, onOpenInvoice }: Prop
         inv.invoiceNo || inv.id,
         inv.name || "",
         inv.email || "",
-        inv.date || "",
+        inv.date ? formatInvoiceDate(inv.date) : "",
         inv.status || "",
         String(inv.amount || 0),
       ]),
@@ -347,7 +348,7 @@ export default function ReportsPage({ invoices, customers, onOpenInvoice }: Prop
                       <b>{inv.name || "—"}</b>
                       <small>{inv.email || "No email"}</small>
                     </td>
-                    <td>{inv.date || "—"}</td>
+                    <td>{inv.date ? formatInvoiceDate(inv.date) : "—"}</td>
                     <td>
                       <span
                         className={`status status-${(inv.status || "pending")

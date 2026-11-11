@@ -7,6 +7,7 @@ import {
   type CustomerRecord,
 } from "@/components/CustomerForm";
 import { AppIcon, Icons } from "@/components/icons";
+import { formatInvoiceDate } from "@/lib/invoiceUtils";
 import "./CustomerDetailModal.css";
 
 type Props = {
@@ -122,7 +123,7 @@ export default function CustomerDetailModal({ customer, onClose, onEdit }: Props
             <Field label="Price list" value={doc.priceList} />
             <Field label="Portal enabled" value={doc.enablePortal} />
             <Field label="Portal language" value={doc.portalLanguage} />
-            <Field label="Created" value={doc.date} />
+            <Field label="Created" value={doc.date ? formatInvoiceDate(doc.date) : ""} />
           </div>
 
           <h3 className="customer-detail-section">Addresses</h3>

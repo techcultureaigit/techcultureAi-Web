@@ -45,10 +45,7 @@ export default function InvoiceTemplate({ invoice, companySettings }: Props) {
     invoice.gstApplicable,
     invoice.gstPercent,
   );
-  const invoiceNo =
-    !invoice.invoiceNo || invoice.invoiceNo === "Auto"
-      ? "Auto-generated"
-      : invoice.invoiceNo;
+  const invoiceNo = invoice.invoiceNo || "—";
 
   return (
     <div className="tc-invoice">

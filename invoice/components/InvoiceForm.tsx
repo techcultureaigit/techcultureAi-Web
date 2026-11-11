@@ -3,6 +3,7 @@
 import CustomerSearchSelect, {
   type CustomerOption,
 } from "@/components/CustomerSearchSelect";
+import DateTextInput from "@/components/DateTextInput";
 import InvoiceTemplate from "@/components/InvoiceTemplate";
 import { AppIcon, Icons } from "@/components/icons";
 import { invoiceApi } from "@/lib/api";
@@ -28,6 +29,8 @@ type Props = {
   isNew?: boolean;
   /** Days added to invoice date for default Due Date (from Settings → overdue after). */
   defaultDueDays?: number;
+  /** Existing invoice numbers used to prevent duplicates in the form. */
+  existingInvoiceNos?: string[];
   companySettings?: {
     businessAddress?: string;
     businessCin?: string;
@@ -62,6 +65,7 @@ export default function InvoiceForm({
   onChange,
   isNew = false,
   defaultDueDays = 5,
+  existingInvoiceNos = [],
   companySettings = null,
 }: Props) {
   const dueDays = Math.max(1, Number(defaultDueDays) || 5);
@@ -72,6 +76,13 @@ export default function InvoiceForm({
     },
     { dueDays },
   );
+  const invoiceNoTaken = (() => {
+    const no = String(invoice.invoiceNo || "").trim().toLowerCase();
+    if (!no || no === "auto") return false;
+    return existingInvoiceNos.some(
+      (item) => String(item || "").trim().toLowerCase() === no,
+    );
+  })();
 
   function patch(next: Partial<InvoiceDocument>) {
     const merged = normalizeInvoice({ ...invoice, ...next, id: invoice.id }, { dueDays });
@@ -278,23 +289,38 @@ export default function InvoiceForm({
             <label>
               Invoice No
               <input
-                value={isNew ? "Auto-generated on create" : invoice.invoiceNo}
-                readOnly
-                disabled
-                title={
-                  isNew
-                    ? "Number is assigned automatically when you create the invoice."
-                    : "Invoice number cannot be changed."
+                required
+                value={invoice.invoiceNo || ""}
+                onChange={(e) => patch({ invoiceNo: e.target.value })}
+                placeholder="e.g. 001/2026"
+                title="Auto-filled next number. You can edit it — must stay unique."
+                style={
+                  invoiceNoTaken
+                    ? { borderColor: "#ef4444", boxShadow: "0 0 0 2px #fecaca" }
+                    : undefined
                 }
               />
+              <small
+                style={{
+                  color: invoiceNoTaken ? "#dc2626" : "#98a1af",
+                  fontWeight: 500,
+                  display: "block",
+                  marginTop: 4,
+                }}
+              >
+                {invoiceNoTaken
+                  ? "This invoice number already exists. Choose another."
+                  : isNew
+                    ? "Auto-generated next number. You can edit before create."
+                    : "Editable — must be unique across invoices."}
+              </small>
             </label>
             <label>
               Invoice date
-              <input
-                type="date"
+              <DateTextInput
+                required
                 value={invoice.date || ""}
-                onChange={(e) => {
-                  const date = e.target.value;
+                onChange={(date) => {
                   const currentDueDays = (() => {
                     if (!invoice.date || !invoice.dueDate) return dueDays;
                     const from = new Date(invoice.date).getTime();
@@ -304,7 +330,7 @@ export default function InvoiceForm({
                   })();
                   patch({
                     date,
-                    dueDate: addDaysToIsoDate(date, currentDueDays),
+                    dueDate: date ? addDaysToIsoDate(date, currentDueDays) : "",
                     invoiceDuration: invoice.invoiceDuration || invoiceDurationLabel(date),
                   });
                 }}
@@ -334,10 +360,9 @@ export default function InvoiceForm({
             </label>
             <label>
               Due date
-              <input
-                type="date"
+              <DateTextInput
                 value={invoice.dueDate || ""}
-                onChange={(e) => patch({ dueDate: e.target.value })}
+                onChange={(dueDate) => patch({ dueDate })}
               />
             </label>
             <label>

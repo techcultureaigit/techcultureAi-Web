@@ -27,7 +27,8 @@ import {
 import { confirmDialog, toast } from "@/lib/notify";
 import type { InvoiceDocument } from "@/lib/invoiceTypes";
 import { fetchWorkspaceFromApi } from "@/lib/invoiceStorage";
-import { createBlankInvoice, normalizeInvoice, withAutoOverdueStatus } from "@/lib/invoiceUtils";
+import DateTextInput from "@/components/DateTextInput";
+import { createBlankInvoice, formatInvoiceDate, normalizeInvoice, withAutoOverdueStatus } from "@/lib/invoiceUtils";
 import { routeForSection, type Section } from "@/lib/routes";
 
 type RecordItem = {
@@ -356,12 +357,11 @@ export default function WorkspacePage({ section }: { section: Section }) {
     }
     setEditing(null);
     if(section==="Invoices"){
-      setInvoiceForm({
-        ...createBlankInvoice(data.Invoices || [], {
+      setInvoiceForm(
+        createBlankInvoice(data.Invoices || [], {
           dueDays: dueDaysFromSettings(mailSettings),
         }),
-        invoiceNo: "Auto",
-      });
+      );
       setModal(true);
       return;
     }
@@ -422,10 +422,25 @@ export default function WorkspacePage({ section }: { section: Section }) {
         toast.warning("Add at least one line item description.");
         return;
       }
-      // First create always starts as Pending; invoice No is always backend-generated
+      // First create always starts as Pending
       if (isNew) {
-        saved = { ...saved, status: "Pending", invoiceNo: "" };
+        saved = { ...saved, status: "Pending" };
       }
+
+      const invoiceNo = String(saved.invoiceNo || "").trim();
+      if (!invoiceNo || /^auto$/i.test(invoiceNo)) {
+        toast.warning("Invoice number is required.");
+        return;
+      }
+      const duplicate = (data.Invoices || []).some((inv) => {
+        if (editing && inv.id === editing.id) return false;
+        return String(inv.invoiceNo || "").trim().toLowerCase() === invoiceNo.toLowerCase();
+      });
+      if (duplicate) {
+        toast.warning(`Invoice number ${invoiceNo} already exists. Please use a unique number.`);
+        return;
+      }
+      saved = { ...saved, invoiceNo };
 
       const prevStatus = (editing?.status || "").toLowerCase();
       const nextStatus = (saved.status || "").toLowerCase();
@@ -433,15 +448,8 @@ export default function WorkspacePage({ section }: { section: Section }) {
 
       try {
         const res = editing
-          ? await invoiceApi.updateInvoice(editing.id, {
-              ...saved,
-              // Keep existing invoice number on edit
-              invoiceNo: editing.invoiceNo || saved.invoiceNo,
-            })
-          : await invoiceApi.createInvoice((() => {
-              const { invoiceNo: _ignored, ...payload } = saved;
-              return payload;
-            })());
+          ? await invoiceApi.updateInvoice(editing.id, saved)
+          : await invoiceApi.createInvoice(saved);
         let next = normalizeInvoice(res.invoice);
 
         // Auto email on first create (Pending/Overdue)
@@ -499,6 +507,12 @@ export default function WorkspacePage({ section }: { section: Section }) {
         setModal(false);
         if (!isNew) toast.success("Invoice changes saved.", "Saved");
       } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to save invoice";
+        if (/already exists|unique|duplicate/i.test(message)) {
+          toast.error(message, "Invoice number taken");
+          return;
+        }
         // Keep UX working offline with local cache
         upsertInvoice(saved, editing?.id || null);
         setModal(false);
@@ -695,7 +709,7 @@ export default function WorkspacePage({ section }: { section: Section }) {
       setSettingsSaving(false);
     }
   }
-  function downloadCSV(){const rows=[["ID","Name","Email","Amount","Status","Date"],...filtered.map(r=>[r.id,r.name,r.email||"",String(r.amount||0),r.status||"",r.date||""])];const csv=rows.map(row=>row.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`${section.toLowerCase().replaceAll(" ","-")}.csv`;a.click();URL.revokeObjectURL(a.href)}
+  function downloadCSV(){const rows=[["ID","Name","Email","Amount","Status","Date"],...filtered.map(r=>[r.id,r.name,r.email||"",String(r.amount||0),r.status||"",r.date?formatInvoiceDate(r.date):""])];const csv=rows.map(row=>row.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`${section.toLowerCase().replaceAll(" ","-")}.csv`;a.click();URL.revokeObjectURL(a.href)}
   const pageTitle = section === "Dashboard" ? "Good morning, Subham 👋" : section;
   const pageDescription = section === "Dashboard"
     ? "Here’s what’s happening with your business today."
@@ -800,6 +814,10 @@ export default function WorkspacePage({ section }: { section: Section }) {
               onChange={setInvoiceForm}
               isNew={!editing}
               defaultDueDays={dueDaysFromSettings(mailSettings)}
+              existingInvoiceNos={(data.Invoices || [])
+                .filter((inv) => !editing || inv.id !== editing.id)
+                .map((inv) => String(inv.invoiceNo || ""))
+                .filter(Boolean)}
               companySettings={mailSettings}
             />
           ) : (
@@ -815,7 +833,7 @@ export default function WorkspacePage({ section }: { section: Section }) {
               </label>
               <label>Amount (₹)<input type="number" min="0" required value={form.amount||0} onChange={e=>setForm({...form,amount:Number(e.target.value)})}/></label>
               <label>Status<select value={form.status||"Active"} onChange={e=>setForm({...form,status:e.target.value})}>{["Completed","Processing","Failed"].map(s=><option key={s}>{s}</option>)}</select></label>
-              <label>Date<input type="date" value={form.date||""} onChange={e=>setForm({...form,date:e.target.value})}/></label>
+              <label>Date<DateTextInput value={form.date||""} onChange={(date)=>setForm({...form,date})}/></label>
               <label>Category<input value={form.category||""} onChange={e=>setForm({...form,category:e.target.value})} placeholder="e.g. Software"/></label>
               <label className="full-field">Notes / description<textarea value={form.description||""} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Add a note (optional)"/></label>
             </div>
@@ -904,7 +922,7 @@ function RecordTable({
               </td>
               {section !== "Customers" && <td className="amount-cell">{money(r.amount || 0)}</td>}
               {section === "Customers" && <td>{r.phone || r.email || "—"}</td>}
-              <td>{r.date || r.category || "—"}</td>
+              <td>{r.date ? formatInvoiceDate(r.date) : r.category || "—"}</td>
               <td>
                 <span
                   className={`status status-${(r.status || "active").toLowerCase().replaceAll(" ", "-")}`}
