@@ -1,18 +1,41 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getAuthUser } from "@/lib/auth";
+import { getAuthUser, verifyAuthSession } from "@/lib/auth";
 
 export default function HomeRedirect() {
   const router = useRouter();
+  const [message, setMessage] = useState("Checking session…");
 
   useEffect(() => {
-    if (getAuthUser()) {
-      router.replace("/dashboard");
-      return;
-    }
-    router.replace("/login");
+    let cancelled = false;
+
+    (async () => {
+      const local = getAuthUser();
+      if (!local) {
+        setMessage("Redirecting to login…");
+        router.replace("/login");
+        return;
+      }
+
+      setMessage("Verifying session…");
+      const verified = await verifyAuthSession();
+      if (cancelled) return;
+
+      if (verified) {
+        setMessage("Redirecting to dashboard…");
+        router.replace("/dashboard");
+        return;
+      }
+
+      setMessage("Redirecting to login…");
+      router.replace("/login");
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   return (
@@ -25,7 +48,7 @@ export default function HomeRedirect() {
         fontSize: 14,
       }}
     >
-      Redirecting…
+      {message}
     </div>
   );
 }
