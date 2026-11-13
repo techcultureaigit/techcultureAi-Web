@@ -41,6 +41,9 @@ type RecordItem = {
   date?: string;
   category?: string;
   description?: string;
+  proofUrl?: string | null;
+  proofName?: string | null;
+  kind?: string;
 } & Partial<CustomerRecord> &
   Partial<InvoiceDocument>;
 
@@ -48,10 +51,45 @@ const emptyData: Record<string, RecordItem[]> = {
   Invoices: [],
   Customers: [],
   Payments: [],
+  Received: [],
 };
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
 const money=(n:number)=>new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0}).format(n||0);
 const today=()=>new Date().toISOString().slice(0,10);
 const MONTH_SHORT=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_FULL=[
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December",
+];
+
+function invoiceDateParts(raw?: string): { year: number; month: number } | null {
+  const s = String(raw || "").trim();
+  if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const y = Number(s.slice(0, 4));
+    const m = Number(s.slice(5, 7)) - 1;
+    if (!Number.isFinite(y) || m < 0 || m > 11) return null;
+    return { year: y, month: m };
+  }
+  const dmy = s.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (dmy) {
+    const y = Number(dmy[3]);
+    const m = Number(dmy[2]) - 1;
+    if (!Number.isFinite(y) || m < 0 || m > 11) return null;
+    return { year: y, month: m };
+  }
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return null;
+  return { year: d.getFullYear(), month: d.getMonth() };
+}
 
 function formatChartAxis(n:number){
   if(n>=10000000) return `₹${(n/10000000).toFixed(n%10000000===0?0:1)}Cr`;
@@ -75,14 +113,13 @@ export default function WorkspacePage({ section }: { section: Section }) {
   const searchParams = useSearchParams();
   const [data,setData]=useState<Record<string,RecordItem[]>>(emptyData);
   const [search,setSearch]=useState("");
-  const [dateSort,setDateSort]=useState<"newest"|"oldest">("newest");
+  const [dateSort,setDateSort]=useState<"newest"|"oldest"|"month"|"quarter"|"year">("newest");
   const [modal,setModal]=useState(false);
   const [editing,setEditing]=useState<RecordItem|null>(null);
   const [viewing,setViewing]=useState<RecordItem|null>(null);
   const [viewingCustomer,setViewingCustomer]=useState<CustomerRecord|null>(null);
   const [sendingId,setSendingId]=useState<string|null>(null);
   const [markingPaidId,setMarkingPaidId]=useState<string|null>(null);
-  const [installPrompt,setInstallPrompt]=useState<any>(null);
   const [form,setForm]=useState<RecordItem>({id:"",name:"",email:"",phone:"",amount:0,status:"Pending",date:"",category:"",description:""});
   const [invoiceForm,setInvoiceForm]=useState<InvoiceDocument>(() => ({
     id: "",
@@ -117,6 +154,8 @@ export default function WorkspacePage({ section }: { section: Section }) {
   const [settingsSaving,setSettingsSaving]=useState(false);
   const [ccDraft,setCcDraft]=useState("");
   const [revenuePeriod,setRevenuePeriod]=useState<RevenuePeriod>("7m");
+  const [dashYear,setDashYear]=useState<"all"|number>("all");
+  const [dashMonth,setDashMonth]=useState<"all"|number>("all");
 
   function goTo(next: Section, query?: string) {
     router.push(routeForSection(next, query));
@@ -147,6 +186,7 @@ export default function WorkspacePage({ section }: { section: Section }) {
           Invoices: (remote.Invoices || []) as RecordItem[],
           Customers: (remote.Customers || []) as RecordItem[],
           Payments: (remote.Payments || []) as RecordItem[],
+          Received: (remote.Received || []) as RecordItem[],
         });
       }
     } catch (error) {
@@ -164,6 +204,7 @@ export default function WorkspacePage({ section }: { section: Section }) {
           Invoices: (remote.Invoices || []) as RecordItem[],
           Customers: (remote.Customers || []) as RecordItem[],
           Payments: (remote.Payments || []) as RecordItem[],
+          Received: (remote.Received || []) as RecordItem[],
         });
       } else {
         // No API / empty DB — start clean (clear old local demo cache)
@@ -180,11 +221,8 @@ export default function WorkspacePage({ section }: { section: Section }) {
       }
       if (!cancelled) void runInvoiceAutomation();
     })();
-    const handler=(e:Event)=>{e.preventDefault();setInstallPrompt(e)};
-    window.addEventListener("beforeinstallprompt",handler);
     return ()=>{
       cancelled = true;
-      window.removeEventListener("beforeinstallprompt",handler);
     };
   },[]);
 
@@ -218,21 +256,73 @@ export default function WorkspacePage({ section }: { section: Section }) {
       Object.values(r).join(" ").toLowerCase().includes(search.toLowerCase()),
     );
     if (section !== "Invoices") return list;
-    return [...list].sort((a, b) => {
-      const da = String(a.date || "");
-      const db = String(b.date || "");
-      const cmp = da.localeCompare(db);
-      if (cmp !== 0) return dateSort === "newest" ? -cmp : cmp;
-      // tie-break by invoice no / id
+
+    function invoiceDateMs(raw?: string) {
+      const s = String(raw || "").trim();
+      if (!s) return NaN;
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+        return new Date(`${s.slice(0, 10)}T00:00:00`).getTime();
+      }
+      const dmy = s.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+      if (dmy) {
+        return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1])).getTime();
+      }
+      const d = new Date(s);
+      return Number.isNaN(d.getTime()) ? NaN : d.getTime();
+    }
+
+    function inSelectedPeriod(dateMs: number) {
+      if (!Number.isFinite(dateMs)) return false;
+      if (dateSort !== "month" && dateSort !== "quarter" && dateSort !== "year") {
+        return true;
+      }
+      const now = new Date();
+      const d = new Date(dateMs);
+      if (dateSort === "year") return d.getFullYear() === now.getFullYear();
+      if (dateSort === "month") {
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      }
+      const nowQ = Math.floor(now.getMonth() / 3);
+      const dateQ = Math.floor(d.getMonth() / 3);
+      return d.getFullYear() === now.getFullYear() && dateQ === nowQ;
+    }
+
+    const periodFiltered = list.filter((r) => inSelectedPeriod(invoiceDateMs(r.date)));
+    const newestFirst = dateSort !== "oldest";
+
+    return [...periodFiltered].sort((a, b) => {
+      const da = invoiceDateMs(a.date);
+      const db = invoiceDateMs(b.date);
+      const aOk = Number.isFinite(da);
+      const bOk = Number.isFinite(db);
+      if (aOk && bOk && da !== db) return newestFirst ? db - da : da - db;
+      if (aOk !== bOk) return aOk ? -1 : 1;
       const ia = String(a.invoiceNo || a.id || "");
       const ib = String(b.invoiceNo || b.id || "");
-      return dateSort === "newest" ? ib.localeCompare(ia) : ia.localeCompare(ib);
+      return newestFirst ? ib.localeCompare(ia) : ia.localeCompare(ib);
     });
   },[records,search,section,dateSort]);
   const invoices=useMemo(
     ()=>(data.Invoices||[]).map((inv)=>withAutoOverdueStatus(inv)),
     [data.Invoices],
   );
+  const availableYears=useMemo(()=>{
+    const years=new Set<number>([new Date().getFullYear()]);
+    for(const inv of invoices){
+      const parts=invoiceDateParts(inv.date);
+      if(parts) years.add(parts.year);
+    }
+    return [...years].sort((a,b)=>b-a);
+  },[invoices]);
+  const dashboardInvoices=useMemo(()=>{
+    return invoices.filter((inv)=>{
+      const parts=invoiceDateParts(inv.date);
+      if(!parts) return dashYear==="all"&&dashMonth==="all";
+      if(dashYear!=="all"&&parts.year!==dashYear) return false;
+      if(dashMonth!=="all"&&parts.month!==dashMonth) return false;
+      return true;
+    });
+  },[invoices,dashYear,dashMonth]);
   const customers=useMemo(()=>{
     return (data.Customers||[])
       .map((c)=>{
@@ -255,9 +345,8 @@ export default function WorkspacePage({ section }: { section: Section }) {
       })
       .filter((c): c is {id:string;name:string;email:string;phone:string} => Boolean(c));
   },[data.Customers]);
-  const totalInvoices=invoices.reduce((a,r)=>a+(r.amount||0),0);
-  const outstanding=invoices.filter(r=>r.status!=="Paid").reduce((a,r)=>a+(r.amount||0),0);
-  const paid=invoices.filter(r=>r.status==="Paid").reduce((a,r)=>a+(r.amount||0),0);
+  const outstanding=dashboardInvoices.filter(r=>r.status!=="Paid").reduce((a,r)=>a+(r.amount||0),0);
+  const paid=dashboardInvoices.filter(r=>r.status==="Paid").reduce((a,r)=>a+(r.amount||0),0);
   const customerCount=(data.Customers||[]).length;
 
   const revenueChart=useMemo(()=>{
@@ -312,10 +401,10 @@ export default function WorkspacePage({ section }: { section: Section }) {
       }
     }
 
-    for(const inv of invoices){
+    for(const inv of dashboardInvoices){
       const raw=String(inv.date||"").trim();
       if(!raw) continue;
-      const d=new Date(raw);
+      const d=new Date(raw.includes("T")?raw:`${raw.slice(0,10)}T00:00:00`);
       if(Number.isNaN(d.getTime())) continue;
       const amount=Number(inv.amount||0)||0;
       const isPaid=String(inv.status||"").toLowerCase()==="paid";
@@ -350,7 +439,7 @@ export default function WorkspacePage({ section }: { section: Section }) {
     }
 
     return {bars,axis,revenueNote};
-  },[invoices,revenuePeriod]);
+  },[dashboardInvoices,revenuePeriod]);
   function openNew(){
     if(section==="Customers"){
       router.push("/customers/new");
@@ -366,7 +455,19 @@ export default function WorkspacePage({ section }: { section: Section }) {
       setModal(true);
       return;
     }
-    setForm({id:`${section.slice(0,3).toUpperCase()}-${Date.now().toString().slice(-5)}`,name:"",email:"",phone:"",amount:0,status:"Active",date:today(),category:"",description:""});
+    setForm({
+      id: `${section.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-5)}`,
+      name: "",
+      email: "",
+      phone: "",
+      amount: 0,
+      status: section === "Received" ? "Received" : "Active",
+      date: today(),
+      category: "",
+      description: "",
+      proofUrl: null,
+      proofName: null,
+    });
     setModal(true);
   }
   function openEdit(r:RecordItem){
@@ -542,6 +643,41 @@ export default function WorkspacePage({ section }: { section: Section }) {
       }
       return;
     }
+    if (section === "Received") {
+      if (!form.name?.trim()) {
+        toast.warning("Enter the sender / invoice name.");
+        return;
+      }
+      if (!form.proofUrl) {
+        toast.warning("Upload the invoice proof (image or PDF).");
+        return;
+      }
+      try {
+        const res = editing
+          ? await invoiceApi.updateReceivedInvoice(editing.id, form)
+          : await invoiceApi.createReceivedInvoice(form);
+        const next = res.receivedInvoice;
+        setData((old) => ({
+          ...old,
+          Received: editing
+            ? (old.Received || []).map((r) => (r.id === editing.id ? next : r))
+            : [next, ...(old.Received || [])],
+        }));
+        setModal(false);
+        toast.success(editing ? "Received invoice updated." : "Received invoice saved.", "Saved");
+      } catch (error) {
+        setData((old) => ({
+          ...old,
+          Received: editing
+            ? (old.Received || []).map((r) => (r.id === editing.id ? form : r))
+            : [form, ...(old.Received || [])],
+        }));
+        setModal(false);
+        toast.warning("Saved locally — API save failed.", "Offline save");
+        console.warn("Received invoice API save failed, saved locally:", error);
+      }
+      return;
+    }
     setData(old=>({...old,[section]:editing?(old[section]||[]).map(r=>r.id===editing.id?form:r):[form,...(old[section]||[])]}));
     setModal(false);
   }
@@ -557,6 +693,7 @@ export default function WorkspacePage({ section }: { section: Section }) {
     try {
       if(section==="Invoices") await invoiceApi.deleteInvoice(id);
       else if(section==="Payments") await invoiceApi.deletePayment(id);
+      else if(section==="Received") await invoiceApi.deleteReceivedInvoice(id);
       else if(section==="Customers") await invoiceApi.deleteCustomer(id);
       toast.success("Record deleted.", "Deleted");
     } catch (error) {
@@ -735,42 +872,32 @@ export default function WorkspacePage({ section }: { section: Section }) {
     }
   }
   function downloadCSV(){const rows=[["ID","Name","Email","Amount","Status","Date"],...filtered.map(r=>[r.id,r.name,r.email||"",String(r.amount||0),r.status||"",r.date?formatInvoiceDate(r.date):""])];const csv=rows.map(row=>row.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`${section.toLowerCase().replaceAll(" ","-")}.csv`;a.click();URL.revokeObjectURL(a.href)}
-  const pageTitle = section === "Dashboard" ? "Good morning, Subham 👋" : section;
-  const pageDescription = section === "Dashboard"
-    ? "Here’s what’s happening with your business today."
-    : section === "Invoices"
-      ? "Create invoices (auto-email Pending), collect payment proof, then mark Paid."
-      : section === "Reports"
-        ? "Full billing reports for one customer or all customers, with CSV export."
-      : section === "Settings"
-        ? "Control reminders, CC emails on every client mail, and SMTP sender settings."
-      : `Manage your ${section.toLowerCase()} and keep everything running smoothly.`;
-  const pageActions = (
-    <>
-      {installPrompt && (
-        <button
-          className="btn btn-secondary"
-          type="button"
-          onClick={async () => {
-            await installPrompt.prompt();
-            setInstallPrompt(null);
-          }}
-        >
-          <AppIcon icon={Icons.download} size={14} /> Install app
-        </button>
-      )}
-      {section !== "Dashboard" && section !== "Reports" && section !== "Settings" && (
-        <button className="btn btn-primary" type="button" onClick={openNew}>
-          <AppIcon icon={Icons.plus} size={14} />
-          {section === "Invoices"
-            ? "Create invoice"
-            : section === "Customers"
-              ? "Add customer"
-              : "Add payment"}
-        </button>
-      )}
-    </>
-  );
+  const pageTitle = section === "Dashboard" ? undefined : section;
+  const pageDescription =
+    section === "Dashboard"
+      ? undefined
+      : section === "Invoices"
+        ? "Create invoices (auto-email Pending), collect payment proof, then mark Paid."
+        : section === "Received"
+          ? "Save invoices others send you — store proof, amount, and sender name."
+        : section === "Reports"
+          ? "Full billing reports for one customer or all customers, with CSV export."
+          : section === "Settings"
+            ? "Control reminders, CC emails on every client mail, and SMTP sender settings."
+            : `Manage your ${section.toLowerCase()} and keep everything running smoothly.`;
+  const pageActions =
+    section !== "Dashboard" && section !== "Reports" && section !== "Settings" ? (
+      <button className="btn btn-primary" type="button" onClick={openNew}>
+        <AppIcon icon={Icons.plus} size={14} />
+        {section === "Invoices"
+          ? "Create invoice"
+          : section === "Customers"
+            ? "Add customer"
+            : section === "Received"
+              ? "Save received invoice"
+            : "Add payment"}
+      </button>
+    ) : null;
   return (
     <AppShell
       active={section}
@@ -780,10 +907,10 @@ export default function WorkspacePage({ section }: { section: Section }) {
       actions={pageActions}
     >
       <div className="page-content">
-      {section==="Dashboard"?<><div className="stat-grid"><Stat title="Total revenue" value={money(paid)} note={revenueChart.revenueNote} icon={Icons.trendUp} tone="green"/><Stat title="Outstanding" value={money(outstanding)} note={`${invoices.filter(r=>r.status!=="Paid").length} invoices need attention`} icon={Icons.clock} tone="orange"/><Stat title="Total invoices" value={String(invoices.length).padStart(2,"0")} note={`${invoices.filter(r=>r.status==="Paid").length} paid successfully`} icon={Icons.invoices} tone="purple"/><Stat title="Customers" value={String(customerCount).padStart(2,"0")} note="Active customer records" icon={Icons.customers} tone="blue"/></div>
+      {section==="Dashboard"?<><div className="dashboard-filters"><label className="dashboard-filter"><span>Year</span><span className="dashboard-filter-select"><select aria-label="Filter by year" value={dashYear==="all"?"all":String(dashYear)} onChange={(e)=>{const v=e.target.value;setDashYear(v==="all"?"all":Number(v))}}><option value="all">All</option>{availableYears.map((y)=><option key={y} value={y}>{y}</option>)}</select></span></label><label className="dashboard-filter"><span>Month</span><span className="dashboard-filter-select"><select aria-label="Filter by month" value={dashMonth==="all"?"all":String(dashMonth)} onChange={(e)=>{const v=e.target.value;setDashMonth(v==="all"?"all":Number(v))}}><option value="all">All</option>{MONTH_FULL.map((name,idx)=><option key={name} value={idx}>{name}</option>)}</select></span></label></div><div className="stat-grid"><Stat title="Total revenue" value={money(paid)} note={revenueChart.revenueNote} icon={Icons.trendUp} tone="green" onClick={()=>goTo("Invoices")}/><Stat title="Outstanding" value={money(outstanding)} note={`${dashboardInvoices.filter(r=>r.status!=="Paid").length} invoices need attention`} icon={Icons.clock} tone="orange" onClick={()=>goTo("Invoices")}/><Stat title="Total invoices" value={String(dashboardInvoices.length).padStart(2,"0")} note={`${dashboardInvoices.filter(r=>r.status==="Paid").length} paid successfully`} icon={Icons.invoices} tone="purple" onClick={()=>goTo("Invoices")}/><Stat title="Customers" value={String(customerCount).padStart(2,"0")} note="Active customer records" icon={Icons.customers} tone="blue" onClick={()=>goTo("Customers")}/></div>
       <div className="dashboard-grid"><section className="panel revenue-panel"><div className="panel-heading"><div><h2>Revenue overview</h2><p>Keep an eye on your income over time</p></div><select aria-label="Revenue period" value={revenuePeriod} onChange={(e)=>setRevenuePeriod(e.target.value as RevenuePeriod)}><option value="7m">Last 7 months</option><option value="30d">Last 30 days</option><option value="year">This year</option></select></div><div className="chart-legend"><span><i className="legend-orange"/>Revenue</span><span><i className="legend-pale"/>Pending</span></div><div className="chart"><div className="chart-y">{revenueChart.axis.map((label,i)=><span key={`y-${i}`}>{label}</span>)}</div><div className="chart-bars">{revenueChart.bars.map((x,i)=><div className="bar-group" key={`bar-${i}-${x.m}`} title={`Paid ${money(x.paid)} · Pending ${money(x.pending)}`}><div className="bars"><i style={{height:`${x.a}%`}}/><i style={{height:`${x.b}%`}}/></div><span>{x.m}</span></div>)}</div></div></section>
-      <section className="panel"><div className="panel-heading"><div><h2>Invoice status</h2><p>Quick snapshot of your invoices</p></div><button className="text-link" onClick={()=>goTo("Invoices")}>View all <AppIcon icon={Icons.external} size={12}/></button></div><div className="donut-wrap"><div className="donut"><div><strong>{invoices.length}</strong><span>Total invoices</span></div></div></div><div className="status-list"><StatusLine label="Paid" count={invoices.filter(r=>r.status==="Paid").length} color="dot-green"/><StatusLine label="Pending" count={invoices.filter(r=>r.status==="Pending").length} color="dot-orange"/><StatusLine label="Overdue" count={invoices.filter(r=>r.status==="Overdue").length} color="dot-red"/></div></section></div>
-      <section className="panel recent-panel"><div className="panel-heading"><div><h2>Recent invoices</h2><p>Your latest billing activity</p></div><button className="text-link" onClick={()=>goTo("Invoices")}>See all invoices <AppIcon icon={Icons.external} size={12}/></button></div><RecordTable records={invoices.slice(0,4)} section="Invoices" onEdit={openEdit} onDelete={remove} onSend={sendInvoice} onRowClick={openInvoiceDetails} sendingId={sendingId} compact/></section>
+      <section className="panel"><div className="panel-heading"><div><h2>Invoice status</h2><p>Quick snapshot of your invoices</p></div><button className="text-link" onClick={()=>goTo("Invoices")}>View all <AppIcon icon={Icons.external} size={12}/></button></div><div className="donut-wrap"><div className="donut"><div><strong>{dashboardInvoices.length}</strong><span>Total invoices</span></div></div></div><div className="status-list"><StatusLine label="Paid" count={dashboardInvoices.filter(r=>r.status==="Paid").length} color="dot-green"/><StatusLine label="Pending" count={dashboardInvoices.filter(r=>r.status==="Pending").length} color="dot-orange"/><StatusLine label="Overdue" count={dashboardInvoices.filter(r=>r.status==="Overdue").length} color="dot-red"/></div></section></div>
+      <section className="panel recent-panel"><div className="panel-heading"><div><h2>Recent invoices</h2><p>Your latest billing activity</p></div><button className="text-link" onClick={()=>goTo("Invoices")}>See all invoices <AppIcon icon={Icons.external} size={12}/></button></div><RecordTable records={dashboardInvoices.slice(0,4)} section="Invoices" onEdit={openEdit} onDelete={remove} onSend={sendInvoice} onRowClick={openInvoiceDetails} sendingId={sendingId} compact/></section>
       </>:section==="Reports"?(
         <ReportsPage
           invoices={invoices}
@@ -793,7 +920,7 @@ export default function WorkspacePage({ section }: { section: Section }) {
             if (full) openInvoiceDetails(full);
           }}
         />
-      ):section==="Settings"?<div className="settings-grid"><section className="panel settings-panel"><h2>Invoice email automation</h2><p>After Due Date passes, unpaid invoices get reminder emails until marked Paid. Repeat interval is controlled below. Each invoice can also set its own Due days on create.</p><div className="setting-row"><div><b>Auto email reminders</b><small>Send overdue reminder emails until the invoice is Paid.</small></div><label style={{display:"flex",alignItems:"center",gap:8,margin:0,fontWeight:600}}><input type="checkbox" checked={mailSettings.autoEmailEnabled} onChange={(e)=>setMailSettings((s)=>({...s,autoEmailEnabled:e.target.checked}))}/> {mailSettings.autoEmailEnabled?"On":"Off"}</label></div><label>Reminder every (after due date, until Paid)<div style={{display:"flex",gap:8}}><input type="number" min={1} max={mailSettings.reminderIntervalUnit==="minutes"?1440:mailSettings.reminderIntervalUnit==="hours"?720:90} value={mailSettings.reminderInterval} onChange={(e)=>setMailSettings((s)=>({...s,reminderInterval:Number(e.target.value)||1,reminderIntervalDays:s.reminderIntervalUnit==="days"?Number(e.target.value)||1:s.reminderIntervalDays}))}/><select aria-label="Reminder interval unit" value={mailSettings.reminderIntervalUnit} onChange={(e)=>setMailSettings((s)=>({...s,reminderIntervalUnit:e.target.value as IntervalUnit}))} style={{minWidth:110}}><option value="minutes">Minutes</option><option value="hours">Hours</option><option value="days">Days</option></select></div></label><label>Default due days (new invoices)<div style={{display:"flex",gap:8}}><input type="number" min={1} max={365} value={dueDaysFromSettings(mailSettings)} onChange={(e)=>{const days=Math.max(1,Math.min(365,Number(e.target.value)||1));setMailSettings((s)=>({...s,overdueAfter:days,overdueAfterUnit:"days",overdueAfterDays:days}))}}/><select aria-label="Default due unit" value="days" disabled style={{minWidth:110}}><option value="days">Days</option></select></div></label><p style={{fontSize:11,color:"#98a1af",margin:"12px 0 0"}}>Flow: invoice Due Date pass → status Overdue → reminder mail every {formatIntervalLabel(mailSettings.reminderInterval,mailSettings.reminderIntervalUnit)} until Paid. Default due for new invoices: {dueDaysFromSettings(mailSettings)} day(s) (override per invoice on create). First create still emails once; Paid sends confirmation once.</p><button className="btn btn-primary" type="button" disabled={settingsSaving} onClick={()=>void saveMailSettings()}>{settingsSaving?"Saving...":"Save email settings"}</button><button className="btn btn-secondary" type="button" style={{marginLeft:8}} onClick={()=>void runInvoiceAutomation()}>Run automation now</button></section><section className="panel settings-panel"><h2>Company on invoice</h2><p>Shown on invoice preview, PDF attachment, and emails. Default is Regal Building, Connaught Place.</p><label>Legal name<input value={mailSettings.businessLegalName} onChange={(e)=>setMailSettings((s)=>({...s,businessLegalName:e.target.value}))} placeholder="TECHCULTURE TECHNOLOGIES PRIVATE LIMITED"/></label><label>CIN<input value={mailSettings.businessCin} onChange={(e)=>setMailSettings((s)=>({...s,businessCin:e.target.value}))} placeholder="U62010DL2026PTC460892"/></label><label className="full-field">Business address<textarea rows={3} value={mailSettings.businessAddress} onChange={(e)=>setMailSettings((s)=>({...s,businessAddress:e.target.value}))} placeholder="50, 51, Second Floor, Regal Building, Connaught Place, New Delhi, Central Delhi, Delhi, India, 110001"/></label><button className="btn btn-primary" type="button" disabled={settingsSaving} onClick={()=>void saveMailSettings()}>{settingsSaving?"Saving...":"Save company details"}</button></section><section className="panel settings-panel"><h2>Email sender (SMTP)</h2><p>Dynamically control the Gmail account used to send invoice emails. Saved in database (overrides .env).</p><label>Sender display name<input value={mailSettings.smtpFromName} onChange={(e)=>setMailSettings((s)=>({...s,smtpFromName:e.target.value,businessName:e.target.value}))} placeholder="TechCulture Technologies"/></label><label>SMTP From Email<input type="email" value={mailSettings.smtpFromEmail} onChange={(e)=>setMailSettings((s)=>({...s,smtpFromEmail:e.target.value}))} placeholder="subhamkumarsahoo9090@gmail.com"/></label><label>SMTP User (Gmail login)<input type="email" value={mailSettings.smtpUser} onChange={(e)=>setMailSettings((s)=>({...s,smtpUser:e.target.value}))} placeholder="same as from email usually"/></label><label>Gmail App Password<input type="password" value={mailSettings.smtpPass} onChange={(e)=>setMailSettings((s)=>({...s,smtpPass:e.target.value}))} placeholder={mailSettings.smtpPassConfigured?"Leave blank to keep saved password":"16-character app password"} autoComplete="new-password"/><small style={{color:"#98a1af",fontWeight:500}}>{mailSettings.smtpPassConfigured?"Password already saved. Enter a new one only to change it.":"Generate an App Password from Google Account → Security."}</small></label><label>SMTP Host<input value={mailSettings.smtpHost} onChange={(e)=>setMailSettings((s)=>({...s,smtpHost:e.target.value}))}/></label><label>SMTP Port<input type="number" value={mailSettings.smtpPort} onChange={(e)=>setMailSettings((s)=>({...s,smtpPort:Number(e.target.value)||587}))}/></label><button className="btn btn-primary" type="button" disabled={settingsSaving} onClick={()=>void saveMailSettings()}>{settingsSaving?"Saving...":"Save sender settings"}</button></section><section className="panel settings-panel"><h2>CC emails (all client mails)</h2><p>Add one or more email IDs. Every invoice email sent to a client (create, reminder, paid) will include these addresses in CC.</p><div className="cc-email-add" style={{display:"flex",gap:8,alignItems:"center",marginTop:12}}><input type="email" value={ccDraft} onChange={(e)=>setCcDraft(e.target.value)} onKeyDown={(e)=>{if(e.key==="Enter"){e.preventDefault();addCcEmail()}}} placeholder="name@company.com" style={{flex:1,height:39,border:"1px solid #e7ebf0",borderRadius:8,padding:"0 11px"}}/><button className="btn btn-secondary" type="button" onClick={addCcEmail}><AppIcon icon={Icons.plus} size={14}/> Add</button></div>{mailSettings.ccEmails.length?(<ul className="cc-email-list" style={{listStyle:"none",margin:"14px 0 0",padding:0,display:"grid",gap:8}}>{mailSettings.ccEmails.map((email)=>(<li key={email} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"10px 12px",border:"1px solid #edf0f4",borderRadius:8,background:"#fafbfc"}}><span style={{fontSize:12,fontWeight:600,color:"#314054",wordBreak:"break-all"}}>{email}</span><button type="button" className="btn btn-danger" style={{padding:"6px 10px"}} onClick={()=>removeCcEmail(email)} aria-label={`Remove ${email}`}><AppIcon icon={Icons.close} size={14}/> Remove</button></li>))}</ul>):(<p style={{fontSize:11,color:"#98a1af",margin:"12px 0 0"}}>No CC emails yet. Add addresses above, then save.</p>)}<button className="btn btn-primary" type="button" disabled={settingsSaving} onClick={()=>void saveMailSettings()} style={{marginTop:16}}>{settingsSaving?"Saving...":"Save CC emails"}</button></section></div>:<section className="panel table-panel"><div className="table-toolbar"><div className="search-box"><AppIcon icon={Icons.search} size={14}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={`Search ${section.toLowerCase()}...`}/><kbd>⌘ K</kbd></div><div className="table-actions">{section==="Invoices"?(<label className="invoice-sort-label">Sort by date<select value={dateSort} onChange={(e)=>setDateSort(e.target.value==="oldest"?"oldest":"newest")} aria-label="Sort invoices by date"><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>):null}<button className="btn btn-secondary" onClick={downloadCSV}><AppIcon icon={Icons.download} size={14}/> Export</button>{section!=="Customers"&&section!=="Invoices"&&<button className="btn btn-primary" onClick={openNew}><AppIcon icon={Icons.plus} size={14}/> Add new</button>}</div></div><RecordTable records={filtered} section={section} onEdit={openEdit} onDelete={remove} onSend={sendInvoice} onRowClick={section==="Invoices"?openInvoiceDetails:section==="Customers"?openCustomerDetails:undefined} sendingId={sendingId}/><div className="table-footer"><span>Showing <b>{filtered.length}</b> of <b>{records.length}</b> records</span><div><button disabled><AppIcon icon={Icons.back} size={14}/></button><button className="page-number">1</button><button disabled><AppIcon icon={Icons.external} size={14}/></button></div></div></section>}
+      ):section==="Settings"?<div className="settings-grid"><section className="panel settings-panel"><h2>Invoice email automation</h2><p>After Due Date passes, unpaid invoices get reminder emails until marked Paid. Repeat interval is controlled below. Each invoice can also set its own Due days on create.</p><div className="setting-row"><div><b>Auto email reminders</b><small>Send overdue reminder emails until the invoice is Paid.</small></div><label style={{display:"flex",alignItems:"center",gap:8,margin:0,fontWeight:600}}><input type="checkbox" checked={mailSettings.autoEmailEnabled} onChange={(e)=>setMailSettings((s)=>({...s,autoEmailEnabled:e.target.checked}))}/> {mailSettings.autoEmailEnabled?"On":"Off"}</label></div><label>Reminder every (after due date, until Paid)<div style={{display:"flex",gap:8}}><input type="number" min={1} max={mailSettings.reminderIntervalUnit==="minutes"?1440:mailSettings.reminderIntervalUnit==="hours"?720:90} value={mailSettings.reminderInterval} onChange={(e)=>setMailSettings((s)=>({...s,reminderInterval:Number(e.target.value)||1,reminderIntervalDays:s.reminderIntervalUnit==="days"?Number(e.target.value)||1:s.reminderIntervalDays}))}/><select aria-label="Reminder interval unit" value={mailSettings.reminderIntervalUnit} onChange={(e)=>setMailSettings((s)=>({...s,reminderIntervalUnit:e.target.value as IntervalUnit}))} style={{minWidth:110}}><option value="minutes">Minutes</option><option value="hours">Hours</option><option value="days">Days</option></select></div></label><label>Default due days (new invoices)<div style={{display:"flex",gap:8}}><input type="number" min={1} max={365} value={dueDaysFromSettings(mailSettings)} onChange={(e)=>{const days=Math.max(1,Math.min(365,Number(e.target.value)||1));setMailSettings((s)=>({...s,overdueAfter:days,overdueAfterUnit:"days",overdueAfterDays:days}))}}/><select aria-label="Default due unit" value="days" disabled style={{minWidth:110}}><option value="days">Days</option></select></div></label><p style={{fontSize:11,color:"#98a1af",margin:"12px 0 0"}}>Flow: invoice Due Date pass → status Overdue → reminder mail every {formatIntervalLabel(mailSettings.reminderInterval,mailSettings.reminderIntervalUnit)} until Paid. Default due for new invoices: {dueDaysFromSettings(mailSettings)} day(s) (override per invoice on create). First create still emails once; Paid sends confirmation once.</p><button className="btn btn-primary" type="button" disabled={settingsSaving} onClick={()=>void saveMailSettings()}>{settingsSaving?"Saving...":"Save email settings"}</button><button className="btn btn-secondary" type="button" style={{marginLeft:8}} onClick={()=>void runInvoiceAutomation()}>Run automation now</button></section><section className="panel settings-panel"><h2>Company on invoice</h2><p>Shown on invoice preview, PDF attachment, and emails. Default is Regal Building, Connaught Place.</p><label>Legal name<input value={mailSettings.businessLegalName} onChange={(e)=>setMailSettings((s)=>({...s,businessLegalName:e.target.value}))} placeholder="TECHCULTURE TECHNOLOGIES PRIVATE LIMITED"/></label><label>CIN<input value={mailSettings.businessCin} onChange={(e)=>setMailSettings((s)=>({...s,businessCin:e.target.value}))} placeholder="U62010DL2026PTC460892"/></label><label className="full-field">Business address<textarea rows={3} value={mailSettings.businessAddress} onChange={(e)=>setMailSettings((s)=>({...s,businessAddress:e.target.value}))} placeholder="50, 51, Second Floor, Regal Building, Connaught Place, New Delhi, Central Delhi, Delhi, India, 110001"/></label><button className="btn btn-primary" type="button" disabled={settingsSaving} onClick={()=>void saveMailSettings()}>{settingsSaving?"Saving...":"Save company details"}</button></section><section className="panel settings-panel"><h2>Email sender (SMTP)</h2><p>Dynamically control the Gmail account used to send invoice emails. Saved in database (overrides .env).</p><label>Sender display name<input value={mailSettings.smtpFromName} onChange={(e)=>setMailSettings((s)=>({...s,smtpFromName:e.target.value,businessName:e.target.value}))} placeholder="TechCulture Technologies"/></label><label>SMTP From Email<input type="email" value={mailSettings.smtpFromEmail} onChange={(e)=>setMailSettings((s)=>({...s,smtpFromEmail:e.target.value}))} placeholder="subhamkumarsahoo9090@gmail.com"/></label><label>SMTP User (Gmail login)<input type="email" value={mailSettings.smtpUser} onChange={(e)=>setMailSettings((s)=>({...s,smtpUser:e.target.value}))} placeholder="same as from email usually"/></label><label>Gmail App Password<input type="password" value={mailSettings.smtpPass} onChange={(e)=>setMailSettings((s)=>({...s,smtpPass:e.target.value}))} placeholder={mailSettings.smtpPassConfigured?"Leave blank to keep saved password":"16-character app password"} autoComplete="new-password"/><small style={{color:"#98a1af",fontWeight:500}}>{mailSettings.smtpPassConfigured?"Password already saved. Enter a new one only to change it.":"Generate an App Password from Google Account → Security."}</small></label><label>SMTP Host<input value={mailSettings.smtpHost} onChange={(e)=>setMailSettings((s)=>({...s,smtpHost:e.target.value}))}/></label><label>SMTP Port<input type="number" value={mailSettings.smtpPort} onChange={(e)=>setMailSettings((s)=>({...s,smtpPort:Number(e.target.value)||587}))}/></label><button className="btn btn-primary" type="button" disabled={settingsSaving} onClick={()=>void saveMailSettings()}>{settingsSaving?"Saving...":"Save sender settings"}</button></section><section className="panel settings-panel"><h2>CC emails (all client mails)</h2><p>Add one or more email IDs. Every invoice email sent to a client (create, reminder, paid) will include these addresses in CC.</p><div className="cc-email-add" style={{display:"flex",gap:8,alignItems:"center",marginTop:12}}><input type="email" value={ccDraft} onChange={(e)=>setCcDraft(e.target.value)} onKeyDown={(e)=>{if(e.key==="Enter"){e.preventDefault();addCcEmail()}}} placeholder="name@company.com" style={{flex:1,height:39,border:"1px solid #e7ebf0",borderRadius:8,padding:"0 11px"}}/><button className="btn btn-secondary" type="button" onClick={addCcEmail}><AppIcon icon={Icons.plus} size={14}/> Add</button></div>{mailSettings.ccEmails.length?(<ul className="cc-email-list" style={{listStyle:"none",margin:"14px 0 0",padding:0,display:"grid",gap:8}}>{mailSettings.ccEmails.map((email)=>(<li key={email} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"10px 12px",border:"1px solid #edf0f4",borderRadius:8,background:"#fafbfc"}}><span style={{fontSize:12,fontWeight:600,color:"#314054",wordBreak:"break-all"}}>{email}</span><button type="button" className="btn btn-danger" style={{padding:"6px 10px"}} onClick={()=>removeCcEmail(email)} aria-label={`Remove ${email}`}><AppIcon icon={Icons.close} size={14}/> Remove</button></li>))}</ul>):(<p style={{fontSize:11,color:"#98a1af",margin:"12px 0 0"}}>No CC emails yet. Add addresses above, then save.</p>)}<button className="btn btn-primary" type="button" disabled={settingsSaving} onClick={()=>void saveMailSettings()} style={{marginTop:16}}>{settingsSaving?"Saving...":"Save CC emails"}</button></section></div>:<section className="panel table-panel"><div className="table-toolbar"><div className="search-box"><AppIcon icon={Icons.search} size={14}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={`Search ${section.toLowerCase()}...`}/><kbd>⌘ K</kbd></div><div className="table-actions">{section==="Invoices"?(<label className="invoice-sort-label">Sort / period<select value={dateSort} onChange={(e)=>{const v=e.target.value;setDateSort(v==="oldest"||v==="month"||v==="quarter"||v==="year"?v:"newest")}} aria-label="Sort invoices by date or period"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="month">This month</option><option value="quarter">This quarter</option><option value="year">This year</option></select></label>):null}<button className="btn btn-secondary" onClick={downloadCSV}><AppIcon icon={Icons.download} size={14}/> Export</button>{section!=="Customers"&&section!=="Invoices"&&<button className="btn btn-primary" onClick={openNew}><AppIcon icon={Icons.plus} size={14}/> Add new</button>}</div></div><RecordTable records={filtered} section={section} onEdit={openEdit} onDelete={remove} onSend={sendInvoice} onRowClick={section==="Invoices"?openInvoiceDetails:section==="Customers"?openCustomerDetails:undefined} sendingId={sendingId}/><div className="table-footer"><span>Showing <b>{filtered.length}</b> of <b>{records.length}</b> records</span><div><button disabled><AppIcon icon={Icons.back} size={14}/></button><button className="page-number">1</button><button disabled><AppIcon icon={Icons.external} size={14}/></button></div></div></section>}
       <footer className="footer"><span>© 2026 TechCulture Finance</span><span><i/> All changes saved locally <b>·</b> Made for your business</span></footer></div>
     {viewing && (
       <InvoiceDetailModal
@@ -828,7 +955,14 @@ export default function WorkspacePage({ section }: { section: Section }) {
         <form className={`record-modal ${section==="Invoices"?"invoice-editor-modal":""}`} onSubmit={save}>
           <div className="modal-top">
             <div>
-              <h2>{editing?"Edit":"Add"} {section==="Invoices"?"invoice":"payment"}</h2>
+              <h2>
+                {editing ? "Edit" : "Add"}{" "}
+                {section === "Invoices"
+                  ? "invoice"
+                  : section === "Received"
+                    ? "received invoice"
+                    : "payment"}
+              </h2>
             </div>
             <button type="button" className="modal-close" onClick={()=>setModal(false)} aria-label="Close"><AppIcon icon={Icons.close} size={18}/></button>
           </div>
@@ -845,6 +979,85 @@ export default function WorkspacePage({ section }: { section: Section }) {
                 .filter(Boolean)}
               companySettings={mailSettings}
             />
+          ) : section === "Received" ? (
+            <div className="form-grid">
+              <label className="full-field">
+                Sender / invoice from
+                <input
+                  required
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Who sent this invoice?"
+                />
+              </label>
+              <label>
+                Amount (₹)
+                <input
+                  type="number"
+                  min="0"
+                  required
+                  value={form.amount || 0}
+                  onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })}
+                />
+              </label>
+              <label>
+                Date received
+                <DateTextInput
+                  value={form.date || ""}
+                  onChange={(date) => setForm({ ...form, date })}
+                />
+              </label>
+              <label className="full-field">
+                Invoice proof (image / PDF)
+                <input
+                  type="file"
+                  accept="image/*,.pdf,application/pdf"
+                  required={!form.proofUrl}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    if (!file) {
+                      setForm({ ...form, proofUrl: null, proofName: null });
+                      return;
+                    }
+                    void readFileAsDataUrl(file)
+                      .then((url) => {
+                        setForm((prev) => ({
+                          ...prev,
+                          proofUrl: url,
+                          proofName: file.name,
+                        }));
+                      })
+                      .catch(() => {
+                        toast.error("Could not read that file. Try again.");
+                      });
+                  }}
+                />
+                {form.proofName ? (
+                  <small style={{ display: "block", marginTop: 6, color: "#445264" }}>
+                    Attached:{" "}
+                    {form.proofUrl ? (
+                      <a href={form.proofUrl} target="_blank" rel="noreferrer">
+                        {form.proofName}
+                      </a>
+                    ) : (
+                      form.proofName
+                    )}
+                  </small>
+                ) : (
+                  <small style={{ display: "block", marginTop: 6, color: "#98a1af" }}>
+                    Upload the invoice they sent as proof.
+                  </small>
+                )}
+              </label>
+              <label className="full-field">
+                Notes (optional)
+                <textarea
+                  value={form.description || ""}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  placeholder="Any note about this received invoice"
+                />
+              </label>
+            </div>
           ) : (
             <div className="form-grid">
               <label className="full-field">
@@ -877,7 +1090,15 @@ export default function WorkspacePage({ section }: { section: Section }) {
               />
             ) : null}
             <button type="button" className="btn btn-secondary" onClick={()=>setModal(false)}>Cancel</button>
-            <button className="btn btn-primary" type="submit">{editing?"Save changes":section==="Invoices"?"Create invoice":"Create record"}</button>
+            <button className="btn btn-primary" type="submit">
+              {editing
+                ? "Save changes"
+                : section === "Invoices"
+                  ? "Create invoice"
+                  : section === "Received"
+                    ? "Save received invoice"
+                    : "Create record"}
+            </button>
           </div>
         </form>
       </div>
@@ -886,7 +1107,40 @@ export default function WorkspacePage({ section }: { section: Section }) {
   );
 }
 
-function Stat({title,value,note,icon,tone}:{title:string;value:string;note:string;icon:IconType;tone:string}){return <div className="stat-card"><div className="stat-top"><span>{title}</span><span className={`stat-icon ${tone}`}><AppIcon icon={icon} size={18}/></span></div><strong>{value}</strong><small>{note}</small></div>}
+function Stat({
+  title,
+  value,
+  note,
+  icon,
+  tone,
+  onClick,
+}: {
+  title: string;
+  value: string;
+  note: string;
+  icon: IconType;
+  tone: string;
+  onClick?: () => void;
+}) {
+  const clickable = Boolean(onClick);
+  return (
+    <button
+      type="button"
+      className={`stat-card${clickable ? " stat-card-clickable" : ""}`}
+      onClick={onClick}
+      disabled={!clickable}
+    >
+      <div className="stat-top">
+        <span>{title}</span>
+        <span className={`stat-icon ${tone}`}>
+          <AppIcon icon={icon} size={18} />
+        </span>
+      </div>
+      <strong>{value}</strong>
+      <small>{note}</small>
+    </button>
+  );
+}
 function StatusLine({label,count,color}:{label:string;count:number;color:string}){return <div className="status-line"><span><i className={color}/>{label}</span><b>{count}</b></div>}
 function RecordTable({
   records,
@@ -907,7 +1161,7 @@ function RecordTable({
   sendingId?: string | null;
   compact?: boolean;
 }) {
-  const colSpan = section === "Invoices" ? 6 : 5;
+  const colSpan = section === "Invoices" ? 6 : section === "Received" ? 6 : 5;
   const clickable = Boolean(onRowClick);
   return (
     <div className="table-scroll">
@@ -915,13 +1169,19 @@ function RecordTable({
         <thead>
           <tr>
             <th>
-              {section === "Invoices" ? "INVOICE" : section === "Customers" ? "CUSTOMER" : "PAYMENT"}{" "}
+              {section === "Invoices"
+                ? "INVOICE"
+                : section === "Customers"
+                  ? "CUSTOMER"
+                  : section === "Received"
+                    ? "SENDER"
+                    : "PAYMENT"}{" "}
               DETAILS
             </th>
             {section !== "Customers" && <th>AMOUNT</th>}
             {section === "Customers" && <th>CONTACT</th>}
-            <th>DATE / CATEGORY</th>
-            <th>STATUS</th>
+            <th>{section === "Received" ? "DATE" : "DATE / CATEGORY"}</th>
+            {section === "Received" ? <th>PROOF</th> : <th>STATUS</th>}
             {section === "Invoices" && <th>SEND</th>}
             <th></th>
           </tr>
@@ -935,12 +1195,15 @@ function RecordTable({
             >
               <td>
                 <div className="record-main">
-                  <div className={`record-avatar av-${i % 4}`}>{r.name.slice(0, 1).toUpperCase()}</div>
+                  <div className={`record-avatar av-${i % 4}`}>
+                    {(r.name || "?").slice(0, 1).toUpperCase()}
+                  </div>
                   <div>
                     <b>{r.name}</b>
                     <small>
-                      {r.invoiceNo || r.id}
-                      {r.email ? ` · ${r.email}` : ""}
+                      {section === "Received"
+                        ? r.proofName || r.id
+                        : `${r.invoiceNo || r.id}${r.email ? ` · ${r.email}` : ""}`}
                     </small>
                   </div>
                 </div>
@@ -948,13 +1211,30 @@ function RecordTable({
               {section !== "Customers" && <td className="amount-cell">{money(r.amount || 0)}</td>}
               {section === "Customers" && <td>{r.phone || r.email || "—"}</td>}
               <td>{r.date ? formatInvoiceDate(r.date) : r.category || "—"}</td>
-              <td>
-                <span
-                  className={`status status-${(r.status || "active").toLowerCase().replaceAll(" ", "-")}`}
-                >
-                  {r.status || "Active"}
-                </span>
-              </td>
+              {section === "Received" ? (
+                <td>
+                  {r.proofUrl ? (
+                    <a
+                      href={r.proofUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {r.proofName || "View proof"}
+                    </a>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+              ) : (
+                <td>
+                  <span
+                    className={`status status-${(r.status || "active").toLowerCase().replaceAll(" ", "-")}`}
+                  >
+                    {r.status || "Active"}
+                  </span>
+                </td>
+              )}
               {section === "Invoices" && (
                 <td>
                   {(() => {
@@ -1007,7 +1287,11 @@ function RecordTable({
                   <AppIcon icon={Icons.search} size={22} />
                 </span>
                 <b>No records found</b>
-                <small>Try a different search or add a new record.</small>
+                <small>
+                  {section === "Received"
+                    ? "Save an invoice someone sent you as proof."
+                    : "Try a different search or add a new record."}
+                </small>
               </td>
             </tr>
           )}

@@ -129,5 +129,22 @@ export const api = {
   updateFaq: (id, body) =>
     request(`/api/faqs/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteFaq: (id) => request(`/api/faqs/${id}`, { method: "DELETE" }),
+  ourProjects: (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        qs.set(key, String(value));
+      }
+    });
+    const query = qs.toString();
+    return request(`/api/our-projects${query ? `?${query}` : ""}`);
+  },
+  getOurProject: (id) => request(`/api/our-projects/${id}`),
+  createOurProject: (body) =>
+    request("/api/our-projects", { method: "POST", body: JSON.stringify(body) }),
+  updateOurProject: (id, body) =>
+    request(`/api/our-projects/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteOurProject: (id) =>
+    request(`/api/our-projects/${id}`, { method: "DELETE" }),
   health: () => request("/api/health"),
 };

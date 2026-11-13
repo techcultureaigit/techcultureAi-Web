@@ -3,6 +3,7 @@ export type Section =
   | "Invoices"
   | "Customers"
   | "Payments"
+  | "Received"
   | "Reports"
   | "Settings";
 
@@ -11,6 +12,7 @@ export const SECTION_ROUTES: Record<Section, string> = {
   Invoices: "/invoices",
   Customers: "/customers",
   Payments: "/payments",
+  Received: "/received",
   Reports: "/reports",
   Settings: "/settings",
 };
@@ -19,6 +21,7 @@ export const NAV_ITEMS: { name: Section; href: string }[] = [
   { name: "Dashboard", href: SECTION_ROUTES.Dashboard },
   { name: "Invoices", href: SECTION_ROUTES.Invoices },
   { name: "Customers", href: SECTION_ROUTES.Customers },
+  { name: "Received", href: SECTION_ROUTES.Received },
   { name: "Reports", href: SECTION_ROUTES.Reports },
   { name: "Settings", href: SECTION_ROUTES.Settings },
 ];

@@ -30,6 +30,7 @@ export async function ensureInvoiceIndexes() {
   const customers = invoiceCollection("customers");
   const invoices = invoiceCollection("invoices");
   const payments = invoiceCollection("payments");
+  const receivedInvoices = invoiceCollection("receivedInvoices");
 
   await Promise.all([
     customers.createIndex({ email: 1 }),
@@ -41,5 +42,8 @@ export async function ensureInvoiceIndexes() {
     invoices.createIndex({ "billTo.name": 1 }),
     payments.createIndex({ date: -1 }),
     payments.createIndex({ status: 1 }),
+    receivedInvoices.createIndex({ date: -1 }),
+    receivedInvoices.createIndex({ name: 1 }),
+    receivedInvoices.createIndex({ updatedAt: -1 }),
   ]);
 }

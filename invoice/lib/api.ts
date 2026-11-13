@@ -58,6 +58,7 @@ export const invoiceApi = {
         Invoices: any[];
         Customers: any[];
         Payments: any[];
+        Received: any[];
       };
     }>("/workspace"),
 
@@ -113,6 +114,41 @@ export const invoiceApi = {
       method: "DELETE",
     }),
 
+  downloadInvoicePdf: async (id: string) => {
+    const token = typeof window !== "undefined" ? getToken() : null;
+    const res = await fetch(`${API_BASE}/invoices/${encodeURIComponent(id)}/pdf`, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      cache: "no-store",
+    });
+
+    if (res.status === 401 || res.status === 403) {
+      logoutUser();
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+        window.location.href = "/login";
+      }
+      throw new InvoiceApiError("Unauthorized", res.status);
+    }
+
+    if (!res.ok) {
+      let message = `Download failed (${res.status})`;
+      try {
+        const payload = await res.json();
+        if (payload?.message) message = String(payload.message);
+      } catch {
+        /* binary error body */
+      }
+      throw new InvoiceApiError(message, res.status);
+    }
+
+    const blob = await res.blob();
+    const disposition = res.headers.get("content-disposition") || "";
+    const match = disposition.match(/filename="?([^"]+)"?/i);
+    const filename = match?.[1] || `Invoice-${id}.pdf`;
+    return { blob, filename };
+  },
+
   getSettings: () =>
     request<{ success: boolean; settings: any }>("/settings"),
 
@@ -159,6 +195,36 @@ export const invoiceApi = {
 
   deletePayment: (id: string) =>
     request<{ success: boolean }>(`/payments/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
+
+  listReceivedInvoices: (q = "") =>
+    request<{ success: boolean; receivedInvoices: any[] }>(
+      `/received-invoices${q ? `?q=${encodeURIComponent(q)}` : ""}`,
+    ),
+
+  getReceivedInvoice: (id: string) =>
+    request<{ success: boolean; receivedInvoice: any }>(
+      `/received-invoices/${encodeURIComponent(id)}`,
+    ),
+
+  createReceivedInvoice: (body: unknown) =>
+    request<{ success: boolean; receivedInvoice: any }>("/received-invoices", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  updateReceivedInvoice: (id: string, body: unknown) =>
+    request<{ success: boolean; receivedInvoice: any }>(
+      `/received-invoices/${encodeURIComponent(id)}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(body),
+      },
+    ),
+
+  deleteReceivedInvoice: (id: string) =>
+    request<{ success: boolean }>(`/received-invoices/${encodeURIComponent(id)}`, {
       method: "DELETE",
     }),
 };

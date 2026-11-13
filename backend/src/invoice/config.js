@@ -10,6 +10,7 @@ export const invoiceConfig = {
     customers: "invoice_customers",
     invoices: "invoice_invoices",
     payments: "invoice_payments",
+    receivedInvoices: "invoice_received_invoices",
     settings: "invoice_settings",
   },
   corsOrigins: rootConfig.corsOrigin,

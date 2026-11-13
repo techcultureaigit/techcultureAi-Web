@@ -35,7 +35,7 @@
 .reports-stat small {
   display: block;
   margin-top: 6px;
-  font-size: 10px;
+  font-size: 12px;
   color: #99a1ad;
 }
 
@@ -59,7 +59,7 @@
 .reports-filters label {
   display: grid;
   gap: 6px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   color: #697485;
   min-width: min(240px, 100%);
@@ -129,7 +129,7 @@
 .reports-table th {
   background: #fafbfc;
   color: #a0a8b4;
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.6px;
   font-weight: 750;
   padding: 12px 16px;
@@ -168,7 +168,7 @@
   display: block;
   margin-top: 3px;
   color: #a0a8b4;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .reports-empty {
@@ -193,7 +193,7 @@
 
 .reports-summary-strip span {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   color: #98a1af;
 }
 

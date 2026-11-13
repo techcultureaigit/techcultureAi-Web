@@ -11,6 +11,7 @@ import teamRoutes from "./routes/team.js";
 import demoRoutes from "./routes/demos.js";
 import contactRoutes from "./routes/contacts.js";
 import faqRoutes from "./routes/faqs.js";
+import ourProjectRoutes from "./routes/ourProjects.js";
 import uploadRoutes, { serveUpload } from "./routes/uploads.js";
 import invoiceRoutes from "./invoice/routes/index.js";
 
@@ -22,7 +23,7 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json({ limit: "5mb" }));
+app.use(express.json({ limit: "15mb" }));
 app.use(morgan("dev"));
 // Serve from disk cache first, then MongoDB (survives Render restarts)
 app.get("/uploads/:filename", serveUpload);
@@ -58,6 +59,7 @@ app.use("/api/team", teamRoutes);
 app.use("/api/demos", demoRoutes);
 app.use("/api/contacts", contactRoutes);
 app.use("/api/faqs", faqRoutes);
+app.use("/api/our-projects", ourProjectRoutes);
 app.use("/api/uploads", uploadRoutes);
 
 // Invoice app API (separate module — does not alter backoffice / AI-user routes)
@@ -78,6 +80,7 @@ async function start() {
     console.log(`   Demos public: POST /api/demos/public`);
     console.log(`   Contacts   : POST /api/contacts/public`);
     console.log(`   FAQs public: GET /api/faqs/public`);
+    console.log(`   Our Projects: /api/our-projects`);
     console.log(`   Uploads    : POST /api/uploads/image`);
     console.log(`   Invoice API: /api/invoice/*`);
   });

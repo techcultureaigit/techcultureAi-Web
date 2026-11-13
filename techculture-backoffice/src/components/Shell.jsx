@@ -8,6 +8,7 @@ import {
   CalendarCheck,
   MessageSquare,
   CircleHelp,
+  FolderKanban,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { TopNavProvider } from "../context/TopNavContext";
@@ -21,6 +22,7 @@ const links = [
   { to: "/demos", label: "Demo bookings", icon: CalendarCheck },
   { to: "/contacts", label: "Contact messages", icon: MessageSquare },
   { to: "/faqs", label: "FAQs", icon: CircleHelp },
+  { to: "/our-projects", label: "Our Project", icon: FolderKanban },
 ];
 
 function ShellInner() {
@@ -102,7 +104,7 @@ function ShellInner() {
 
       <div className="flex min-h-screen min-w-0 flex-col lg:ml-64">
         <TopNav onMenuClick={() => setOpen(true)} />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-6">
+        <main className="w-full min-w-0 flex-1 px-5 py-6 lg:px-8">
           <Outlet />
         </main>
       </div>

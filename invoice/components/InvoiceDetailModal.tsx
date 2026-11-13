@@ -3,8 +3,10 @@
 import { useState } from "react";
 import InvoiceTemplate from "@/components/InvoiceTemplate";
 import { AppIcon, Icons } from "@/components/icons";
+import { invoiceApi } from "@/lib/api";
 import type { InvoiceDocument } from "@/lib/invoiceTypes";
 import { normalizeInvoice } from "@/lib/invoiceUtils";
+import { toast } from "@/lib/notify";
 
 type Props = {
   invoice: Partial<InvoiceDocument> & { id: string };
@@ -48,6 +50,28 @@ export default function InvoiceDetailModal({
   const [proofName, setProofName] = useState(doc.paymentProofName || "");
   const [proofUrl, setProofUrl] = useState(doc.paymentProofUrl || "");
   const [showPaidForm, setShowPaidForm] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  async function downloadInvoice() {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const { blob, filename } = await invoiceApi.downloadInvoicePdf(doc.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Invoice downloaded");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to download invoice");
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   async function onProofChange(file: File | null) {
     if (!file) {
@@ -124,6 +148,16 @@ export default function InvoiceDetailModal({
         <div className="modal-actions invoice-detail-actions">
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             Close
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={downloading}
+            onClick={() => {
+              void downloadInvoice();
+            }}
+          >
+            <AppIcon icon={Icons.download} size={14} /> {downloading ? "Downloading..." : "Download"}
           </button>
           {canSend ? (
             <button

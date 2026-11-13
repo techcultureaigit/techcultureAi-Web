@@ -13,6 +13,7 @@ import {
   HiOutlineChevronDown,
   HiOutlineClock,
   HiOutlineCog6Tooth,
+  HiOutlineDocumentArrowDown,
   HiOutlineDocumentText,
   HiOutlineEllipsisHorizontal,
   HiOutlineHome,
@@ -36,6 +37,7 @@ export const Icons = {
   invoices: HiOutlineDocumentText,
   customers: HiOutlineUserGroup,
   payments: HiOutlineBanknotes,
+  received: HiOutlineDocumentArrowDown,
   reports: HiOutlineChartBar,
   settings: HiOutlineCog6Tooth,
   menu: HiOutlineBars3,
@@ -67,6 +69,7 @@ export const SECTION_ICONS: Record<Section, IconType> = {
   Invoices: Icons.invoices,
   Customers: Icons.customers,
   Payments: Icons.payments,
+  Received: Icons.received,
   Reports: Icons.reports,
   Settings: Icons.settings,
 };

@@ -412,7 +412,7 @@ export default function ReportsPage({ invoices, customers, onOpenInvoice }: Prop
                         <button
                           type="button"
                           className="btn btn-secondary"
-                          style={{ padding: "7px 10px", fontSize: 10 }}
+                          style={{ padding: "7px 10px", fontSize: 12 }}
                           onClick={() => {
                             setSelectedCustomerId(row.id);
                             setStatusFilter("all");

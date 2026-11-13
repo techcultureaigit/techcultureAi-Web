@@ -6,6 +6,7 @@ import authRoutes from "./auth.js";
 import customersRoutes from "./customers.js";
 import invoicesRoutes from "./invoices.js";
 import paymentsRoutes from "./payments.js";
+import receivedInvoicesRoutes from "./receivedInvoices.js";
 import settingsRoutes from "./settings.js";
 import mailRoutes from "./mail.js";
 
@@ -32,6 +33,7 @@ router.get("/health", (_req, res) => {
       "invoice_customers",
       "invoice_invoices",
       "invoice_payments",
+      "invoice_received_invoices",
       "invoice_settings",
     ],
   });
@@ -49,6 +51,7 @@ router.get("/workspace", getWorkspaceBundle);
 router.use("/customers", customersRoutes);
 router.use("/invoices", invoicesRoutes);
 router.use("/payments", paymentsRoutes);
+router.use("/received-invoices", receivedInvoicesRoutes);
 router.use("/settings", settingsRoutes);
 router.use("/mail", mailRoutes);
 

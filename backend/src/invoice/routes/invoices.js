@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   createInvoice,
   deleteInvoice,
+  downloadInvoicePdf,
   getInvoice,
   listInvoices,
   updateInvoice,
@@ -10,6 +11,7 @@ import {
 const router = Router();
 
 router.get("/", listInvoices);
+router.get("/:id/pdf", downloadInvoicePdf);
 router.get("/:id", getInvoice);
 router.post("/", createInvoice);
 router.put("/:id", updateInvoice);

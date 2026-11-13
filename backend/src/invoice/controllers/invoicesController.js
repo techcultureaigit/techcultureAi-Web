@@ -1,5 +1,7 @@
 import { invoiceCollection, toAppDoc } from "../db.js";
+import { invoicePdfFilename, renderInvoicePdfBuffer } from "../invoicePdf.js";
 import { shapeInvoice, validateInvoice } from "../schemas.js";
+import { loadMailSettingsFromDb } from "./settingsController.js";
 
 function col() {
   return invoiceCollection("invoices");
@@ -189,5 +191,30 @@ export async function deleteInvoice(req, res) {
   } catch (err) {
     console.error("[invoice] deleteInvoice", err);
     return res.status(500).json({ success: false, message: "Failed to delete invoice" });
+  }
+}
+
+export async function downloadInvoicePdf(req, res) {
+  try {
+    const id = String(req.params.id || "");
+    const doc = await col().findOne({
+      $or: [{ id }, { _id: id }, { invoiceNo: id }],
+    });
+    if (!doc) {
+      return res.status(404).json({ success: false, message: "Invoice not found" });
+    }
+
+    const invoice = shapeInvoice(toAppDoc(doc), { keepId: String(doc.id || doc._id) });
+    const settings = await loadMailSettingsFromDb();
+    const pdfBuffer = await renderInvoicePdfBuffer(invoice, { settings });
+    const filename = invoicePdfFilename(invoice);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Length", String(pdfBuffer.length));
+    return res.send(pdfBuffer);
+  } catch (err) {
+    console.error("[invoice] downloadInvoicePdf", err);
+    return res.status(500).json({ success: false, message: "Failed to download invoice PDF" });
   }
 }

@@ -20,10 +20,6 @@ type Props = {
 
 export default function AppShell({
   active,
-  crumb,
-  eyebrow,
-  title,
-  description,
   actions,
   children,
 }: Props) {
@@ -32,10 +28,9 @@ export default function AppShell({
   const [mobileNav, setMobileNav] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [user, setUser] = useState<InvoiceAuthUser | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<{ prompt: () => Promise<void> } | null>(null);
   const profileRef = useRef<HTMLDivElement | null>(null);
-  const hasPageHeader = Boolean(title);
   const resolvedActive = active || sectionFromPath(pathname) || "Dashboard";
-  const resolvedCrumb = crumb || resolvedActive;
 
   useEffect(() => {
     let cancelled = false;
@@ -60,6 +55,15 @@ export default function AppShell({
   }, [pathname, router]);
 
   useEffect(() => {
+    function onBeforeInstall(e: Event) {
+      e.preventDefault();
+      setInstallPrompt(e as unknown as { prompt: () => Promise<void> });
+    }
+    window.addEventListener("beforeinstallprompt", onBeforeInstall);
+    return () => window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+  }, []);
+
+  useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!profileRef.current) return;
       if (!profileRef.current.contains(e.target as Node)) {
@@ -81,16 +85,24 @@ export default function AppShell({
     logoutUser();
     setProfileOpen(false);
     setUser(null);
+    setMobileNav(false);
     router.replace("/login");
   }
 
-  function TopActions() {
-    const initials = user?.initials || "ST";
-    const displayName = user?.name || "Subham Tech";
-    const displayEmail = user?.email || "admin@techculture.ai";
+  async function handleInstall() {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    setInstallPrompt(null);
+    setMobileNav(false);
+  }
 
+  const initials = user?.initials || "ST";
+  const displayName = user?.name || "Subham Tech";
+  const displayEmail = user?.email || "admin@techculture.ai";
+
+  function TopActions() {
     return (
-      <div className="top-actions">
+      <div className="top-actions topbar-desktop-only">
         <div className="profile-menu" ref={profileRef}>
           <button
             type="button"
@@ -162,15 +174,31 @@ export default function AppShell({
         </nav>
 
         <div className="sidebar-bottom">
-          <div className="profile">
-            <div className="avatar">{user?.initials || "ST"}</div>
-            <div>
-              <b>{user?.name || "Subham Tech"}</b>
-              <small>Admin account</small>
+          {installPrompt ? (
+            <button
+              type="button"
+              className="btn btn-secondary sidebar-install-btn"
+              onClick={() => void handleInstall()}
+            >
+              <AppIcon icon={Icons.download} size={14} /> Install app
+            </button>
+          ) : null}
+
+          <div className="sidebar-profile-card">
+            <div className="sidebar-profile-main">
+              <div className="avatar">{initials}</div>
+              <div className="sidebar-profile-meta">
+                <b>{displayName}</b>
+                <small>{displayEmail}</small>
+              </div>
             </div>
-            <span className="chevron">
-              <AppIcon icon={Icons.more} size={16} />
-            </span>
+            <button
+              type="button"
+              className="btn btn-secondary sidebar-logout-btn"
+              onClick={handleLogout}
+            >
+              <AppIcon icon={Icons.logout} size={14} /> Logout
+            </button>
           </div>
         </div>
       </aside>
@@ -180,36 +208,31 @@ export default function AppShell({
       ) : null}
 
       <main className="main-area">
-        <header className={`topbar ${hasPageHeader ? "topbar-with-page" : ""}`}>
-          <button
-            className="mobile-menu"
-            type="button"
-            onClick={() => setMobileNav(true)}
-            aria-label="Open menu"
-          >
-            <AppIcon icon={Icons.menu} size={20} />
-          </button>
-
-          {hasPageHeader ? (
-            <div className="topbar-page">
-              <div className="topbar-page-copy">
-                {eyebrow ? <div className="eyebrow">{eyebrow}</div> : null}
-                <h1>{title}</h1>
-                {description ? <p className="subheading topbar-desc">{description}</p> : null}
-              </div>
-              <div className="topbar-page-right">
-                {actions ? <div className="welcome-actions">{actions}</div> : null}
-                <TopActions />
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="crumb">
-                Workspace <span>/</span> <b>{resolvedCrumb}</b>
-              </div>
-              <TopActions />
-            </>
-          )}
+        <header className="topbar">
+          <div className="topbar-left">
+            <button
+              className="mobile-menu"
+              type="button"
+              onClick={() => setMobileNav(true)}
+              aria-label="Open menu"
+            >
+              <AppIcon icon={Icons.menu} size={20} />
+            </button>
+            <div className="topbar-screen-name">{resolvedActive}</div>
+          </div>
+          <div className="topbar-right">
+            {actions ? <div className="welcome-actions">{actions}</div> : null}
+            {installPrompt ? (
+              <button
+                type="button"
+                className="btn btn-secondary topbar-desktop-only"
+                onClick={() => void handleInstall()}
+              >
+                <AppIcon icon={Icons.download} size={14} /> Install app
+              </button>
+            ) : null}
+            <TopActions />
+          </div>
         </header>
         {children}
       </main>

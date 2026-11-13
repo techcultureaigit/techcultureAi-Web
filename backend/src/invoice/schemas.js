@@ -369,3 +369,34 @@ export function validatePayment(body) {
   if (payment.amount < 0) return { ok: false, message: "Amount must be >= 0" };
   return { ok: true, data: payment };
 }
+
+/** Invoices received from others — saved by admin as proof */
+export function shapeReceivedInvoice(input = {}, { keepId } = {}) {
+  const id = keepId || str(input.id) || newId("RCV");
+  return {
+    id,
+    _id: id,
+    name: str(input.name || input.senderName),
+    amount: num(input.amount),
+    date: str(input.date) || new Date().toISOString().slice(0, 10),
+    status: str(input.status, "Received"),
+    description: str(input.description || input.notes),
+    proofUrl: str(input.proofUrl) || null,
+    proofName: str(input.proofName) || null,
+    kind: "received_invoice",
+  };
+}
+
+export function validateReceivedInvoice(body) {
+  const doc = shapeReceivedInvoice(body);
+  if (!doc.name) {
+    return { ok: false, message: "Sender / invoice name is required" };
+  }
+  if (doc.amount < 0) {
+    return { ok: false, message: "Amount must be >= 0" };
+  }
+  if (!doc.proofUrl) {
+    return { ok: false, message: "Invoice proof file is required" };
+  }
+  return { ok: true, data: doc };
+}

@@ -70,6 +70,7 @@ export async function fetchWorkspaceFromApi(): Promise<InvoiceData | null> {
       Invoices: res.data?.Invoices || [],
       Customers: res.data?.Customers || [],
       Payments: res.data?.Payments || [],
+      Received: res.data?.Received || [],
     };
     writeInvoiceData(data);
     return data;

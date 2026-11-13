@@ -10,6 +10,7 @@ import Team from "./pages/Team";
 import DemoBookings from "./pages/DemoBookings";
 import ContactMessages from "./pages/ContactMessages";
 import Faqs from "./pages/Faqs";
+import OurProjects from "./pages/OurProjects";
 import NotFound from "./pages/NotFound";
 
 function PrivateRoute({ children }) {
@@ -47,6 +48,7 @@ export default function App() {
           <Route path="demos" element={<DemoBookings />} />
           <Route path="contacts" element={<ContactMessages />} />
           <Route path="faqs" element={<Faqs />} />
+          <Route path="our-projects" element={<OurProjects />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

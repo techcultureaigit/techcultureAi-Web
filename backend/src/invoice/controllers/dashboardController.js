@@ -44,10 +44,11 @@ export async function getDashboard(_req, res) {
 
 export async function getWorkspaceBundle(_req, res) {
   try {
-    const [invoices, customers, payments] = await Promise.all([
+    const [invoices, customers, payments, receivedInvoices] = await Promise.all([
       invoiceCollection("invoices").find({}).sort({ date: -1 }).toArray(),
       invoiceCollection("customers").find({}).sort({ updatedAt: -1 }).toArray(),
       invoiceCollection("payments").find({}).sort({ date: -1 }).toArray(),
+      invoiceCollection("receivedInvoices").find({}).sort({ date: -1 }).toArray(),
     ]);
 
     return res.json({
@@ -56,6 +57,7 @@ export async function getWorkspaceBundle(_req, res) {
         Invoices: invoices,
         Customers: customers,
         Payments: payments,
+        Received: receivedInvoices,
       },
     });
   } catch (err) {
